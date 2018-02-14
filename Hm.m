@@ -2,6 +2,7 @@ clear all
 close all
 clc
 
+
 %%%%%%%%%%%%%%%%%%
 %%% Parameters %%%
 %%%%%%%%%%%%%%%%%%
@@ -14,18 +15,19 @@ hmax = 2 * pi * 10 / 20;
 
 %% Cylinder specifics
 
-n_cyl = 6;
+n_cyl = 7;
 r_cyl = 10;
-period = 50;
-n_points_cyl = 20;
+cyl_period = 50;
+n_points_cyl = 60;
 
 %% Area specifics
 
 ul_spacing = 1500;
-area_width = 30;
+area_period = 30;
 area_height = n_cyl * 300;
+tot_height = ul_spacing + area_height;
 n_points_ud = 50;
-n_points_lr = 200;
+n_points_lr = floor((ul_spacing + area_height)/10);
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -42,8 +44,8 @@ if mod(n_cyl,2) == 0				% Checks if n_cyl is an even number.
 	
 	for i = 1:n_cyl/2
 		
-		cyl_cent_y(2*i-1) = i * period - period/2;
-		cyl_cent_y(2*i) = - i * period + period/2;
+		cyl_cent_y(2*i-1) = i * cyl_period - cyl_period/2;
+		cyl_cent_y(2*i) = - i * cyl_period + cyl_period/2;
 		
 	end
 	
@@ -53,13 +55,14 @@ else
 	cyl_cent_y = zeros(1,n_cyl);
 	
 	for i = 1:(n_cyl-1)/2
-		cyl_cent_y(2*i) = i * period;
-		cyl_cent_y((2*i)+1) = - i * period;
+		cyl_cent_y(2*i) = i * cyl_period;
+		cyl_cent_y((2*i)+1) = - i * cyl_period;
 	end
 	
 end
 
-%% Points on cylinders' peripheries.
+%{
+%% Points on cylinders' periphery.
 
 cyl_peri_x = zeros(1,n_points_cyl);
 cyl_peri_y = zeros(1,n_points_cyl);
@@ -69,8 +72,8 @@ for j = 1:n_cyl
 	
 	for i = 1:n_points_cyl
 		
-		cyl_peri_x(i+n_points_cyl*(j-1)) = cyl_cent_x(j) + cos(2*pi/n_points_cyl*i);
-		cyl_peri_y(i+n_points_cyl*(j-1)) = cyl_cent_y(j) + sin(2*pi/n_points_cyl*i);
+		cyl_peri_x(i+n_points_cyl*(j-1)) = cyl_cent_x(j) + cos(2*pi/n_points_cyl*i) * r_cyl;
+		cyl_peri_y(i+n_points_cyl*(j-1)) = cyl_cent_y(j) + sin(2*pi/n_points_cyl*i) * r_cyl;
 		
 	end
 	
@@ -78,7 +81,8 @@ for j = 1:n_cyl
 	cyl_cell{2,j} = cyl_peri_y(((j-1)*n_points_cyl)+1:j*n_points_cyl);
 	
 end
-
+%}
+%{
 %% Points on Area Boundary
 
 area_points_x = zeros(1,2 * n_points_lr + 2 * n_points_ud);
@@ -94,7 +98,7 @@ for l = 1:length(area_points_x)
 		
 		key = 1;
     
-        area_points_x(l) = -area_width/2 + ((area_width / n_points_ud) * counter);
+        area_points_x(l) = -area_period/2 + ((area_period / n_points_ud) * counter);
 
         area_points_y(l) = -(area_height/2 + ul_spacing);
 		
@@ -108,7 +112,7 @@ for l = 1:length(area_points_x)
 		
 		key = 2;
 		
-		area_points_x(l) = area_width/2;
+		area_points_x(l) = area_period/2;
 		area_points_y(l) = -(area_height/2 + ul_spacing) + (((2 * ul_spacing + area_height) / n_points_lr) * counter);
 		
 	elseif key == 2
@@ -121,7 +125,7 @@ for l = 1:length(area_points_x)
 		
 		key = 3;
 		
-		area_points_x(l) = area_width/2 - ((area_width / n_points_ud) * counter);
+		area_points_x(l) = area_period/2 - ((area_period / n_points_ud) * counter);
 		area_points_y(l) = area_height/2 + ul_spacing;
 		
 	elseif key == 3
@@ -134,7 +138,7 @@ for l = 1:length(area_points_x)
 		
 		key = 4;
 		
-		area_points_x(l) = -area_width/2;
+		area_points_x(l) = -area_period/2;
 		area_points_y(l) = area_height/2 + ul_spacing - ((2 * ul_spacing + area_height)/n_points_lr * counter);
 		
 	elseif key == 4
@@ -144,7 +148,8 @@ for l = 1:length(area_points_x)
 	end
 	
 end
-
+%}
+%{
 %% Create Geometry Matrix
 
 geom = zeros(length(area_points_x)+n_points_cyl,7);
@@ -172,15 +177,60 @@ for j = 1:n_cyl
 	var_len = var_len + n_points_cyl;
 	
 end
+%}
+
+%% Creating CSG
+
+% Rectangle
+rect = [3 , 4 , -area_period/2 , area_period/2 , area_period/2 , -area_period/2 , -tot_height/2 , -tot_height/2 , tot_height/2 , tot_height/2];
+ns = char('rect');
+sf = 'rect';
+
+geom = zeros(length(rect),n_cyl);
+
+for i = 1:n_cyl
+
+	geom(:,i) = [1 , cyl_cent_x(i) , cyl_cent_y(i) , r_cyl , zeros(1,length(rect) - 4)]';
+	
+	ns = char(ns,['circ',num2str(i)]);
+	
+	sf = [sf,'+',ns(i+1,:)];
+	
+end
+
+ns = ns';
+
+geom = [rect',geom];
 
 %% Plot Structure
+
+[dl,bt] = decsg(geom,sf,ns);
+
+pdegplot(dl,'EdgeLabels','on','FaceLabels','on')
+axis equal
+
+model = createpde(1);
+
+geometryFromEdges(model,dl);
+
+generateMesh(model,'Hmax',hmax,'Hgrad',1.05)
+
+figure(2);pdeplot(model)
 
 % plot(points(1,:),points(2,:),'.')
 % axis equal
 
-[p,e,t] = initmesh(geom','hmax',hmax,'Hgrad',1.05,'MesherVersion','R2013a');
+% delaunayTriangulation
 
-h = pdemesh(p,e,t);
+% geometryFromEdges(model,geom')
+
+% pdegplot(model,'EdgeLabels','on')
+
+% mesh = generateMesh(model,'Hmax',hmax,'Hgrad',1.05,'GeometricOrder','linear')
+
+% [p,e,t] = initmesh(geom','hmax',hmax,'Hgrad',1.05,'MesherVersion','R2013a');
+
+% h = pdemesh(p,e,t);
 
 
 
