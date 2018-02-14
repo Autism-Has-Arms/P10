@@ -59,7 +59,7 @@ else
 	
 end
 
-%% Points on cylinders' periphery.
+%% Points on cylinders' peripheries.
 
 cyl_peri_x = zeros(1,n_points_cyl);
 cyl_peri_y = zeros(1,n_points_cyl);
