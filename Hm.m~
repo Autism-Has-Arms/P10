@@ -313,12 +313,7 @@ edge_point_1_y_val = point_y_val(point_1_ind);
 edge_point_2_y_val = point_y_val(point_2_ind);
 
 % Indices where point 1 and 2 have same y value.
-same_y_val_ind = point_1_ind(edge_point_1_y_val == edge_point_2_y_val);
-
-% The upper edge of box is chosen
-
-point_1_upper_ind = point_1_ind(point_y_val(same_y_val_ind) == tot_height/2);
-point_2_upper_ind = point_2_ind(point_y_val(same_y_val_ind) == tot_height/2);
+same_y_val_ind = edge_point_1_y_val == edge_point_2_y_val;
 
 %point_y_val(point_1_ind(same_y_val_ind))
 point_same_ind = e(1,e_bool_ex);
