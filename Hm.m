@@ -7,8 +7,8 @@ clc
 %%% Parameters %%%
 %%%%%%%%%%%%%%%%%%
 
-di_const0 = 1;
-di_const1 = 12;
+di_const1 = 1;
+di_const2 = 12;
 % di_const2 = 2;
 
 hmax = 2 * pi * 10 / 20;
@@ -246,7 +246,7 @@ n_nodes = length(tri_x_val);
 
 n_tri = length(mesh.Elements(1,:));
 
-b = [2 1 1 ; 1 2 1 ; 1 1 2]/12;
+B = [2 1 1 ; 1 2 1 ; 1 1 2]/12;
 
 M = sparse(n_nodes,n_nodes);
 
@@ -254,13 +254,54 @@ M = sparse(n_nodes,n_nodes);
 
 for i = 1:n_tri
 	
+	zone = t(end,i);
+	
+	if zone == 1
+		
+		diel_const = di_const1;
+		
+	else
+		
+		diel_const = di_const2;
+		
+	end
+	
 	xy_val = p(:,t(1:3,i));
 	
-	area_tri_k = (((xy_val(1,2) - xy_val(1,1)) * (xy_val(2,3) - xy_val(2,1))) - ((xy_val(2,2) - xy_val(2,1)) * (xy_val(1,3) - xy_val(1,1))))/2;
+	x1 = xy_val(1,1);
+	x2 = xy_val(1,2);
+	x3 = xy_val(1,3);
+	y1 = xy_val(2,1);
+	y2 = xy_val(2,2);
+	y3 = xy_val(2,3);
 	
-	M(i:i+2,i:i+2) = M(i:i+2,i:i+2) + (area_tri_k * b);
+	area_tri_k = abs((((x2 - x1) * (y3 - y1)) - ((y2 - y1) * (x3 - x1))))/2;
 	
-	i/n_tri
+	du_dx = (y3 - y1)/((y3 - y1) * (x2 - y1) - (y2 - y1) * (x3 - y1));
+	
+	dv_dx = (y2 - y1)/((y2 - y1) * (x3 - y1) - (y3 - y1) * (x2 - y1));
+	
+	du_dy = -(x3 - x1)/((y3 - y1) * (x2 - y1) - (y2 - y1) * (x3 - y1));
+	
+	dv_dy = -(x2 - x1)/((y2 - y1) * (x3 - y1) - (y3 - y1) * (x2 - y1));
+	
+	d11=(-1*du_dx-1*dv_dx)*(-1*du_dx-1*dv_dx)+(-1*du_dy-1*dv_dy)*(-1*du_dy-1*dv_dy);
+	d12=(-1*du_dx-1*dv_dx)*(+1*du_dx+0*dv_dx)+(-1*du_dy-1*dv_dy)*(+1*du_dy+0*dv_dy);
+	d13=(-1*du_dx-1*dv_dx)*(+0*du_dx+1*dv_dx)+(-1*du_dy-1*dv_dy)*(+0*du_dy+1*dv_dy);   
+	d21=(+1*du_dx+0*dv_dx)*(-1*du_dx-1*dv_dx)+(+1*du_dy+0*dv_dy)*(-1*du_dy-1*dv_dy);
+	d22=(+1*du_dx+0*dv_dx)*(+1*du_dx+0*dv_dx)+(+1*du_dy+0*dv_dy)*(+1*du_dy+0*dv_dy);
+	d23=(+1*du_dx+0*dv_dx)*(+0*du_dx+1*dv_dx)+(+1*du_dy+0*dv_dy)*(+0*du_dy+1*dv_dy);   
+	d31=(+0*du_dx+1*dv_dx)*(-1*du_dx-1*dv_dx)+(+0*du_dy+1*dv_dy)*(-1*du_dy-1*dv_dy);
+	d32=(+0*du_dx+1*dv_dx)*(+1*du_dx+0*dv_dx)+(+0*du_dy+1*dv_dy)*(+1*du_dy+0*dv_dy);
+	d33=(+0*du_dx+1*dv_dx)*(+0*du_dx+1*dv_dx)+(+0*du_dy+1*dv_dy)*(+0*du_dy+1*dv_dy);   
+	
+	A = area_tri_k * [d11 d12 d13 ; d21 d22 d23 ; d31 d32 d33];
+	
+	Mk = (k0^2 * B - A/diel_const)*area_tri_k;
+	
+	M(i:i+2,i:i+2) = M(i:i+2,i:i+2) + Mk;
+	
+	i/n_tri*100
 	
 end
 
