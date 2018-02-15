@@ -201,7 +201,22 @@ ns = ns';
 geom = [rect',geom];
 
 %% Create Model, Geometry & Mesh
+%{
+% plot(points(1,:),points(2,:),'.')
+% axis equal
 
+% delaunayTriangulation
+
+% geometryFromEdges(model,geom')
+
+% pdegplot(model,'EdgeLabels','on')
+
+% mesh = generateMesh(model,'Hmax',hmax,'Hgrad',1.05,'GeometricOrder','linear')
+
+% [p,e,t] = initmesh(geom','hmax',hmax,'Hgrad',1.05,'MesherVersion','R2013a');
+
+% h = pdemesh(p,e,t);
+%}
 [dl,bt] = decsg(geom,sf,ns);
 
 pdegplot(dl,'EdgeLabels','on','FaceLabels','on')
@@ -222,20 +237,6 @@ tri_y_val = p(2,:);
 
 n_tri = length(tri_x_val);
 
-% plot(points(1,:),points(2,:),'.')
-% axis equal
-
-% delaunayTriangulation
-
-% geometryFromEdges(model,geom')
-
-% pdegplot(model,'EdgeLabels','on')
-
-% mesh = generateMesh(model,'Hmax',hmax,'Hgrad',1.05,'GeometricOrder','linear')
-
-% [p,e,t] = initmesh(geom','hmax',hmax,'Hgrad',1.05,'MesherVersion','R2013a');
-
-% h = pdemesh(p,e,t);
 
 
 
