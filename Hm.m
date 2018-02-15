@@ -81,8 +81,7 @@ for j = 1:n_cyl
 	cyl_cell{2,j} = cyl_peri_y(((j-1)*n_points_cyl)+1:j*n_points_cyl);
 	
 end
-%}
-%{
+
 %% Points on Area Boundary
 
 area_points_x = zeros(1,2 * n_points_lr + 2 * n_points_ud);
@@ -148,8 +147,7 @@ for l = 1:length(area_points_x)
 	end
 	
 end
-%}
-%{
+
 %% Create Geometry Matrix
 
 geom = zeros(length(area_points_x)+n_points_cyl,7);
