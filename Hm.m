@@ -7,11 +7,15 @@ clc
 %%% Parameters %%%
 %%%%%%%%%%%%%%%%%%
 
-di_const0 = 0;
-di_const1 = 1;
-di_const2 = 2;
+di_const0 = 1;
+di_const1 = 12;
+% di_const2 = 2;
 
 hmax = 2 * pi * 10 / 20;
+
+lambda = 700;
+
+k0 = 2*pi/lambda;
 
 %% Cylinder specifics
 
@@ -201,6 +205,7 @@ ns = ns';
 geom = [rect',geom];
 
 %% Create Model, Geometry & Mesh
+	
 %{
 % plot(points(1,:),points(2,:),'.')
 % axis equal
@@ -219,8 +224,8 @@ geom = [rect',geom];
 %}
 [dl,bt] = decsg(geom,sf,ns);
 
-pdegplot(dl,'EdgeLabels','on','FaceLabels','on')
-axis equal
+% pdegplot(dl,'EdgeLabels','on','FaceLabels','on')
+% axis equal
 
 model = createpde(1);
 
@@ -228,14 +233,36 @@ geometryFromEdges(model,dl);
 
 mesh = generateMesh(model,'Hmax',hmax,'Hgrad',1.05);
 
-figure(2);pdeplot(model)
+% figure(2);pdeplot(model)
+
+%% Triangle Manipulation
 
 [p,e,t] = meshToPet(mesh);
 
 tri_x_val = p(1,:);
 tri_y_val = p(2,:);
 
-n_tri = length(tri_x_val);
+n_nodes = length(tri_x_val);
+
+n_tri = length(mesh.Elements(1,:));
+
+b = [2 1 1 ; 1 2 1 ; 1 1 2]/12;
+
+M = sparse(n_nodes,n_nodes);
+
+% M = zeros(length(p(1,:)));
+
+for i = 1:n_tri
+	
+	xy_val = p(:,t(1:3,i));
+	
+	area_tri_k = (((xy_val(1,2) - xy_val(1,1)) * (xy_val(2,3) - xy_val(2,1))) - ((xy_val(2,2) - xy_val(2,1)) * (xy_val(1,3) - xy_val(1,1))))/2;
+	
+	M(i:i+2,i:i+2) = M(i:i+2,i:i+2) + (area_tri_k * b);
+	
+	i/n_tri
+	
+end
 
 
 
