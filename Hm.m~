@@ -214,6 +214,7 @@ geom = [rect',geom];
 
 % h = pdemesh(p,e,t);
 %}
+
 [dl,bt] = decsg(geom,sf,ns);
 
 % pdegplot(dl,'EdgeLabels','on','FaceLabels','on')
@@ -243,6 +244,11 @@ B = [2 1 1 ; 1 2 1 ; 1 1 2]/12;
 M = sparse(n_nodes,n_nodes);
 
 % M = zeros(length(p(1,:)));
+
+ind_top_edge = edge_ind(tot_height/2,mesh)
+ind_bot_edge = edge_ind(-tot_height/2,mesh)
+
+%% Calculations
 
 for i = 1:n_tri
 	
@@ -291,6 +297,30 @@ for i = 1:n_tri
 	
 	Mk = (k0^2 * B - A/diel_const)*area_tri_k;
 	
+	if any(i == tri_up_bound)
+		
+		point_vec = p(1:2,t(1:3,i));
+		
+		if point_vec(2,1) == point_vec(2,2)
+			
+			edge_length = abs(ind_vec(1,1) - ind_vec(1,2));
+			
+		elseif ind_vec(2,1) == ind_vec(2,3)
+			
+			edge_length = abs(ind_vec(1,1) - ind_vec(1,3));
+			
+		elseif ind_vec(2,2) == ind_vec(2,3)
+			
+			edge_length = abs(ind_vec(1,2) - ind_vec(1,3));
+		
+		end
+		
+		C = 1i * edge_length * sqrt(diel_const) * k0 * (1/diel_const) * [2 1 0 ; 1 2 0 ; 0 0 0]/6;
+		
+		Mk = Mk + C;
+		
+	end
+	
 	M(i:i+2,i:i+2) = M(i:i+2,i:i+2) + Mk;
 	
 	i/n_tri*100
@@ -299,30 +329,52 @@ end
 
 %% Edges
 
-% find((e(6,:) == 0) + (e(7,:) == 0) == 1)
+function edge_index = edge_ind(num,mesh)
 
-% Index in e of edge interfacing with subdomain 0 (exterior).
-e_bool_ex = (e(6,:) == 0) + (e(7,:) == 0) == 1;
+	[p,e,t] = meshToPet(mesh);
 
-% Finding the corresponding indices in p for first and second point of edge.
-point_1_ind = e(1,e_bool_ex);
-point_2_ind = e(2,e_bool_ex);
+	point_x_val = p(1,:);
+	point_y_val = p(2,:);
 
-% Inserting indices in point_y_val to find y values of points of edge.
-edge_point_1_y_val = point_y_val(point_1_ind);
-edge_point_2_y_val = point_y_val(point_2_ind);
+	% find((e(6,:) == 0) + (e(7,:) == 0) == 1)
 
-% Indices where point 1 and 2 have same y value.
-same_y_val_ind = edge_point_1_y_val == edge_point_2_y_val;
+	% Index in e of edge interfacing with subdomain 0 (exterior).
+	e_bool_ex = (e(6,:) == 0) + (e(7,:) == 0) == 1;
 
-%point_y_val(point_1_ind(same_y_val_ind))
-point_same_ind = e(1,e_bool_ex);
-point_2_ind = e(2,e_bool_ex);
+	% Finding the corresponding indices in p for first and second point of edge.
+	point_1_ind = e(1,e_bool_ex);
+	point_2_ind = e(2,e_bool_ex);
+
+	% Inserting indices in point_y_val to find y values of points of edge.
+	edge_point_1_y_val = point_y_val(point_1_ind);
+	edge_point_2_y_val = point_y_val(point_2_ind);
+
+	% Indices where point 1 and 2 have the same y value.
+	same_y_val_ind_1 = point_1_ind(edge_point_1_y_val == edge_point_2_y_val);
+	same_y_val_ind_2 = point_2_ind(edge_point_1_y_val == edge_point_2_y_val);
+
+	% The upper edge of box is chosen
+
+	point_1_upper_ind = same_y_val_ind_1(point_y_val(same_y_val_ind_1) == num);
+	point_2_upper_ind = same_y_val_ind_2(point_y_val(same_y_val_ind_2) == num);
+
+	counter = 0;
 	
-% if point_y_val(e(1,(e(6,:) == 0) + (e(7,:) == 0) == 1)) == point_y_val(e(2,(e(6,:) == 0) + (e(7,:) == 0) == 1))
-
+	tri_up_bound = 0;
 	
+	for i = 1:length(t(1,:))
 
-% end
+			if (ismember(t(1,i),point_1_upper_ind) && ismember(t(2,i),point_2_upper_ind)) || (ismember(t(1,i),point_1_upper_ind) && ismember(t(3,i),point_2_upper_ind)) || (ismember(t(2,i),point_1_upper_ind) && ismember(t(3,i),point_2_upper_ind))
 
+				counter = counter + 1;
+
+				tri_up_bound(counter) = i;
+
+			end
+
+	end
+	
+	edge_index = tri_up_bound;
+
+end
 
