@@ -245,8 +245,20 @@ M = sparse(n_nodes,n_nodes);
 
 % M = zeros(length(p(1,:)));
 
-ind_top_edge = edge_ind(tot_height/2,mesh);
-ind_bot_edge = edge_ind(-tot_height/2,mesh);
+ind_top_edge = edge_ind(tot_height/2,mesh,'y');
+
+ind_bot_edge = edge_ind(-tot_height/2,mesh,'y');
+
+% lll = edge_ind(area_period/2,mesh,'x');
+
+%% Check indices
+
+xyvals = p(:,t(1:3,ind_top_edge));
+hold on
+plot(xyvals(1,:),xyvals(2,:),'r*')
+xyvals = p(:,t(1:3,ind_bot_edge));
+plot(xyvals(1,:),xyvals(2,:),'r*')
+asd
 
 %% Calculations
 
@@ -295,7 +307,7 @@ for i = 1:n_tri
 	
 	A = area_tri_k * [d11 d12 d13 ; d21 d22 d23 ; d31 d32 d33];
 	
-	Mk = (k0^2 * B - A/diel_const)*area_tri_k;
+	Mk = (k0^2 * B - A/diel_const) * area_tri_k;
 	
 	if any(i == ind_top_edge) || any(i == ind_bot_edge)
 		
@@ -305,19 +317,29 @@ for i = 1:n_tri
 			
 			edge_length = abs(point_vec(1,1) - point_vec(1,2));
 			
+			y_val = point_vec(2,1);
+			
 		elseif point_vec(2,1) == point_vec(2,3)
 			
 			edge_length = abs(point_vec(1,1) - point_vec(1,3));
 			
+			y_val = point_vec(2,1);
+			
 		elseif point_vec(2,2) == point_vec(2,3)
 			
 			edge_length = abs(point_vec(1,2) - point_vec(1,3));
+			
+			y_val = point_vec(2,2);
 			
 		else
 			
 			error('No ifs.')
 		
 		end
+		
+		H0 = exp(-1i*k0*diel_const*y_val);
+		
+		bk = 1i*k0*diel_const*H0*edge_length;
 		
 		C = 1i * edge_length * sqrt(diel_const) * k0 * (1/diel_const) * [2 1 0 ; 1 2 0 ; 0 0 0]/6;
 		
@@ -327,49 +349,68 @@ for i = 1:n_tri
 	
 	M(i:i+2,i:i+2) = M(i:i+2,i:i+2) + Mk;
 	
-	ceil(i/n_tri*100)
+	i/n_tri*100
 	
 end
 
+%% Periodic Boundary Condition
+
+
+
 %% Edges
 
-function edge_index = edge_ind(num,mesh)
+function edge_index = edge_ind(num,mesh,edge)
 
 	[p,e,t] = meshToPet(mesh);
 
 	point_x_val = p(1,:);
 	point_y_val = p(2,:);
+	
+	if edge == 'x'
+		
+		point_val = point_x_val;
+		
+	elseif edge == 'y'
+		
+		point_val = point_y_val;
+		
+	else
+		
+		error("x or y edges?")
+		
+	end
 
 	% find((e(6,:) == 0) + (e(7,:) == 0) == 1)
 
-	% Index in e of edge interfacing with subdomain 0 (exterior).
+	% Index in e where edge interfaces with subdomain 0 (exterior).
 	e_bool_ex = (e(6,:) == 0) + (e(7,:) == 0) == 1;
 
 	% Finding the corresponding indices in p for first and second point of edge.
 	point_1_ind = e(1,e_bool_ex);
 	point_2_ind = e(2,e_bool_ex);
 
-	% Inserting indices in point_y_val to find y values of points of edge.
-	edge_point_1_y_val = point_y_val(point_1_ind);
-	edge_point_2_y_val = point_y_val(point_2_ind);
+	% Inserting indices in point_val to find values of points on edge.
+	edge_point_1_val = point_val(point_1_ind);
+	edge_point_2_val = point_val(point_2_ind);
+	
+	% Indices where point 1 and 2 have the same x/y value & has edge value.
+	same_val_ind_1 = point_1_ind((abs(edge_point_1_val - edge_point_2_val) < 1) & (abs(edge_point_1_val - num) < 1));
+	same_val_ind_2 = point_2_ind((abs(edge_point_1_val - edge_point_2_val) < 1) & (abs(edge_point_1_val - num) < 1));
 
-	% Indices where point 1 and 2 have the same y value.
-	same_y_val_ind_1 = point_1_ind(edge_point_1_y_val == edge_point_2_y_val);
-	same_y_val_ind_2 = point_2_ind(edge_point_1_y_val == edge_point_2_y_val);
-
-	% The upper edge of box is chosen
-
-	point_1_upper_ind = same_y_val_ind_1(point_y_val(same_y_val_ind_1) == num);
-	point_2_upper_ind = same_y_val_ind_2(point_y_val(same_y_val_ind_2) == num);
+% 	% The edge of box is chosen.
+% 
+% 	point_1_ext_ind = same_val_ind_1(point_val(same_val_ind_1) == num)
+% 	point_2_ext_ind = same_val_ind_2(point_val(same_val_ind_2) == num)
 
 	counter = 0;
 	
 	tri_up_bound = 0;
 	
 	for i = 1:length(t(1,:))
-
-			if (ismember(t(1,i),point_1_upper_ind) && ismember(t(2,i),point_2_upper_ind)) || (ismember(t(1,i),point_1_upper_ind) && ismember(t(3,i),point_2_upper_ind)) || (ismember(t(2,i),point_1_upper_ind) && ismember(t(3,i),point_2_upper_ind))
-
+		
+			if (ismember(t(1,i),same_val_ind_1) && ismember(t(2,i),same_val_ind_2)) || (ismember(t(1,i),same_val_ind_1) && ismember(t(3,i),same_val_ind_2)) || (ismember(t(2,i),same_val_ind_1) && ismember(t(3,i),same_val_ind_2))
+				
+				
 				counter = counter + 1;
 
 				tri_up_bound(counter) = i;
