@@ -241,7 +241,7 @@ n_tri = length(mesh.Elements(1,:));
 
 B = [2 1 1 ; 1 2 1 ; 1 1 2]/12;
 
-M = sparse(n_nodes,n_nodes);
+M = sparse(n_tri,n_tri);
 
 % M = zeros(length(p(1,:)));
 
