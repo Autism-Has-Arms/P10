@@ -249,6 +249,10 @@ ind_top_edge = edge_ind(mesh,'y',tot_height/2);
 
 ind_bot_edge = edge_ind(mesh,'y',-tot_height/2);
 
+ind_right_edge = edge_ind(mesh,'x',area_period/2);
+
+ind_left_edge = edge_ind(mesh,'x',-area_period/2);
+asd
 % lll = edge_ind(area_period/2,mesh,'x');
 
 
@@ -301,6 +305,8 @@ for i = 1:n_tri
 	
 	Mk = (k0^2 * B - A/diel_const) * area_tri_k;
 	
+	% Top or bottom triangles.
+	
 	if any(i == ind_top_edge) || any(i == ind_bot_edge)
 		
 		point_vec = p(1:2,t(1:3,i));
@@ -329,9 +335,9 @@ for i = 1:n_tri
 		
 		end
 		
-		H0 = exp(-1i*k0*diel_const*y_val);
+		H0 = exp(-1i * k0 * diel_const * y_val);
 		
-		bk = 1i*k0*diel_const*H0*edge_length;
+		bk = 1i * k0 * diel_const * H0 * edge_length;
 		
 		C = 1i * edge_length * sqrt(diel_const) * k0 * (1/diel_const) * [2 1 0 ; 1 2 0 ; 0 0 0]/6;
 		
@@ -339,14 +345,20 @@ for i = 1:n_tri
 		
 	end
 	
+	% Periodic boundary conditions
+	
+	if any(i == ind_left_edge) || any(i == ind_right_edge)
+		
+		point_vec = p(1:2,t(1:3,i));
+		
+		
+		
+	
 	M(t(1:3,i),t(1:3,i)) = M(t(1:3,i),t(1:3,i)) + Mk;
 	
 	i/n_tri*100
 	
 end
-
-%% Periodic Boundary Condition
-
 
 
 %% Edges
