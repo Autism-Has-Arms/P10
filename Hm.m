@@ -243,8 +243,6 @@ B = [2 1 1 ; 1 2 1 ; 1 1 2]/12;
 
 M = sparse(n_nodes,n_nodes);
 
-% M = zeros(length(p(1,:)));
-
 ind_top_edge = edge_ind(mesh,'y',tot_height/2);
 
 ind_bot_edge = edge_ind(mesh,'y',-tot_height/2);
@@ -252,9 +250,8 @@ ind_bot_edge = edge_ind(mesh,'y',-tot_height/2);
 ind_right_edge = edge_ind(mesh,'x',area_period/2);
 
 ind_left_edge = edge_ind(mesh,'x',-area_period/2);
-asd
-% lll = edge_ind(area_period/2,mesh,'x');
 
+ind_saved = [];
 
 %% Calculations
 
@@ -349,10 +346,49 @@ for i = 1:n_tri
 	
 	if any(i == ind_left_edge) || any(i == ind_right_edge)
 		
+		if any(i == ind_right_edge)
+				
+				ind_opposite = ind_left_edge;
+				
+		elseif any(i == ind_left_edge)
+				
+				ind_opposite = ind_right_edge;
+				
+		else
+			
+			error('i is neither in left or right.')
+		
+		end
+		
+		% x and y values of the three points in the i'th triangle.
+		
 		point_vec = p(1:2,t(1:3,i));
 		
+		% Check which two indices in point_vec have the same x value.
+		
+		ind_same_xval = logical(sum(point_vec(1,:) == point_vec(1,:)') - 1);
+		
+		% The corresponding indices in the 'p' array.
+		
+		ind_in_p = t(ind_same_xval,i);
+		
+		% Save these to not count them multiple times.
+		
+		ind_saved(length(ind_saved)+1:length(ind_saved)+length(ind_in_p)) = ind_in_p;
+		
+		% Corresponding y values.
+		
+		val_y_cor = p(2,ind_in_p);
+		
+		% Consider only opposite points with same x value.
 		
 		
+		
+		% Find points on opposite side with the same y value.
+		
+		%ind_op_side = 
+		
+	end
 	
 	M(t(1:3,i),t(1:3,i)) = M(t(1:3,i),t(1:3,i)) + Mk;
 	
@@ -365,6 +401,8 @@ end
 
 function edge_index = edge_ind(mesh,x_or_y,num)
 	
+	% Gives indices of points on selected edge.
+
 	switch x_or_y
 		
 		case 'x'
