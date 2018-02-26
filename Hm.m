@@ -308,35 +308,19 @@ for i = 1:n_tri
 	
 	if any(i == ind_top_edge) || any(i == ind_bot_edge)
 		
-		point_vec = p(1:2,t(1:3,i));
+		point_vec_ud = p(1:2,t(1:3,i));
 		
-		if point_vec(2,1) == point_vec(2,2)
-			
-			edge_length = abs(point_vec(1,1) - point_vec(1,2));
-			
-			y_val = point_vec(2,1);
-			
-		elseif point_vec(2,1) == point_vec(2,3)
-			
-			edge_length = abs(point_vec(1,1) - point_vec(1,3));
-			
-			y_val = point_vec(2,1);
-			
-		elseif point_vec(2,2) == point_vec(2,3)
-			
-			edge_length = abs(point_vec(1,2) - point_vec(1,3));
-			
-			y_val = point_vec(2,2);
-			
-		else
-			
-			error('No ifs.')
+		ind_same_yval = logical(sum(point_vec_ud(2,:) == point_vec_ud(2,:)') - 1);
 		
-		end
+		edge_length = abs(diff(point_vec_ud(1,ind_same_yval)));
+		
+		y_val = point_vec_ud(2,find(ind_same_yval,1));
 		
 		H0 = exp(-1i * k0 * diel_const * y_val);
 		
 		bk = 1i * k0 * diel_const * H0 * edge_length;
+		
+		b(t(ind_same_yval,i)) = bk;
 		
 		C = 1i * edge_length * sqrt(diel_const) * k0 * (1/diel_const) * [2 1 0 ; 1 2 0 ; 0 0 0]/6;
 		
@@ -368,11 +352,11 @@ for i = 1:n_tri
 		
 		% x and y values of the three points in the i'th triangle.
 		
-		point_vec = p(1:2,t(1:3,i));
+		point_vec_lr = p(1:2,t(1:3,i));
 		
 		% Check which two indices in point_vec have the same x value.
 		
-		ind_same_xval = logical(sum(point_vec(1,:) == point_vec(1,:)') - 1);
+		ind_same_xval = logical(sum(point_vec_lr(1,:) == point_vec_lr(1,:)') - 1);
 		
 		% The corresponding indices in the 'p' array.
 		
