@@ -253,7 +253,7 @@ ind_left_edge = edge_ind(mesh,'x',-area_period/2);
 
 ind_saved = [];
 
-b = zeros(length(p),1);
+bv = zeros(length(p),1);
 
 %% Calculations
 
@@ -310,37 +310,17 @@ for i = 1:n_tri
 		
 		point_vec_ud = p(1:2,t(1:3,i));
 		
+		ind_same_yval = logical(sum(point_vec_ud(2,:) == point_vec_ud(2,:)') - 1);
 		
+		edge_length = abs(diff(point_vec_ud(1,ind_same_yval)));
 		
-		if point_vec_ud(2,1) == point_vec_ud(2,2)
-			
-			edge_length = abs(point_vec_ud(1,1) - point_vec_ud(1,2));
-			
-			y_val = point_vec_ud(2,1);
-			
-		elseif point_vec_ud(2,1) == point_vec_ud(2,3)
-			
-			edge_length = abs(point_vec_ud(1,1) - point_vec_ud(1,3));
-			
-			y_val = point_vec_ud(2,1);
-			
-		elseif point_vec_ud(2,2) == point_vec_ud(2,3)
-			
-			edge_length = abs(point_vec_ud(1,2) - point_vec_ud(1,3));
-			
-			y_val = point_vec_ud(2,2);
-			
-		else
-			
-			error('No ifs.')
-		
-		end
+		y_val = point_vec_ud(2,find(ind_same_yval,1));
 		
 		H0 = exp(-1i * k0 * diel_const * y_val);
 		
 		bk = 1i * k0 * diel_const * H0 * edge_length;
 		
-% 		b[ = bk;
+		bv(t(ind_same_yval,i)) = bk;
 		
 		C = 1i * edge_length * sqrt(diel_const) * k0 * (1/diel_const) * [2 1 0 ; 1 2 0 ; 0 0 0]/6;
 		
@@ -358,11 +338,11 @@ for i = 1:n_tri
 		
 		if any(i == ind_right_edge)
 				
-				ind_opposite = ind_left_edge;
+			ind_opposite = ind_left_edge;
 				
 		elseif any(i == ind_left_edge)
 				
-				ind_opposite = ind_right_edge;
+			ind_opposite = ind_right_edge;
 				
 		else
 			
@@ -420,11 +400,9 @@ for i = 1:n_tri
 			
 			ind_p_close = val_y_op(ind_min_op,2);
 			
-			% Change the corresponding row.
+			% Change the corresponding row by introducing rows of zero.
 			
 			M(ind_in_p,:) = 0;
-			
-			
 			
 			M(sub2ind(size(M),ind_in_p,ind_in_p)) = 1;
 			
@@ -435,6 +413,8 @@ for i = 1:n_tri
 	end
 	
 end
+
+Hv = M\bv;
 
 
 %% Edges

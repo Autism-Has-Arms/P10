@@ -217,7 +217,7 @@ geom = [rect',geom];
 
 [dl,bt] = decsg(geom,sf,ns);
 
-pdegplot(dl,'EdgeLabels','on','FaceLabels','on')
+% pdegplot(dl,'EdgeLabels','on','FaceLabels','on')
 % axis equal
 
 model = createpde(1);
@@ -226,7 +226,7 @@ geometryFromEdges(model,dl);
 
 mesh = generateMesh(model,'Hmax',hmax,'Hgrad',1.05,'GeometricOrder','linear');
 
-pdeplot(model)
+% pdeplot(model)
 
 %% Triangle Manipulation
 
@@ -253,7 +253,7 @@ ind_left_edge = edge_ind(mesh,'x',-area_period/2);
 
 ind_saved = [];
 
-b = zeros(length(p),1);
+bv = zeros(length(p),1);
 
 %% Calculations
 
@@ -320,7 +320,7 @@ for i = 1:n_tri
 		
 		bk = 1i * k0 * diel_const * H0 * edge_length;
 		
-		b(t(ind_same_yval,i)) = bk;
+		bv(t(ind_same_yval,i)) = bk;
 		
 		C = 1i * edge_length * sqrt(diel_const) * k0 * (1/diel_const) * [2 1 0 ; 1 2 0 ; 0 0 0]/6;
 		
@@ -338,11 +338,11 @@ for i = 1:n_tri
 		
 		if any(i == ind_right_edge)
 				
-				ind_opposite = ind_left_edge;
+			ind_opposite = ind_left_edge;
 				
 		elseif any(i == ind_left_edge)
 				
-				ind_opposite = ind_right_edge;
+			ind_opposite = ind_right_edge;
 				
 		else
 			
@@ -400,21 +400,23 @@ for i = 1:n_tri
 			
 			ind_p_close = val_y_op(ind_min_op,2);
 			
-			% Change the corresponding row.
+			% Change the corresponding row by introducing rows of zero.
 			
 			M(ind_in_p,:) = 0;
-			
-			
 			
 			M(sub2ind(size(M),ind_in_p,ind_in_p)) = 1;
 			
 			M(sub2ind(size(M),ind_in_p,ind_p_close)) = -1;
+			
+			bv(ind_in_p) = 0;
 			
 		end
 		
 	end
 	
 end
+
+Hv = M\bv;
 
 
 %% Edges
