@@ -3,9 +3,7 @@ close all
 clc
 
 
-%%%%%%%%%%%%%%%%%%
-%%% Parameters %%%
-%%%%%%%%%%%%%%%%%%
+%% Parameters
 
 di_const1 = 1;
 di_const2 = 12;
@@ -17,12 +15,13 @@ lambda = 700;
 
 k0 = 2*pi/lambda;
 
+
 %% Cylinder specifics
 
 n_cyl = 7;
 r_cyl = 10;
 cyl_period = 50;
-n_points_cyl = 60;
+
 
 %% Area specifics
 
@@ -30,13 +29,6 @@ ul_spacing = 1500;
 area_period = 30;
 area_height = n_cyl * 300;
 tot_height = ul_spacing + area_height;
-% n_points_ud = 50;
-% n_points_lr = floor((ul_spacing + area_height)/10);
-
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% Structure construction %%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
 %% Centres of cylinders.
@@ -65,128 +57,16 @@ else
 	
 end
 
-%{
-%% Points on cylinders' periphery.
-
-cyl_peri_x = zeros(1,n_points_cyl);
-cyl_peri_y = zeros(1,n_points_cyl);
-cyl_cell = cell(2,n_cyl);
-
-for j = 1:n_cyl
-	
-	for i = 1:n_points_cyl
-		
-		cyl_peri_x(i+n_points_cyl*(j-1)) = cyl_cent_x(j) + cos(2*pi/n_points_cyl*i) * r_cyl;
-		cyl_peri_y(i+n_points_cyl*(j-1)) = cyl_cent_y(j) + sin(2*pi/n_points_cyl*i) * r_cyl;
-		
-	end
-	
-	cyl_cell{1,j} = cyl_peri_x(((j-1)*n_points_cyl)+1:j*n_points_cyl);
-	cyl_cell{2,j} = cyl_peri_y(((j-1)*n_points_cyl)+1:j*n_points_cyl);
-	
-end
-
-%% Points on Area Boundary
-
-area_points_x = zeros(1,2 * n_points_lr + 2 * n_points_ud);
-area_points_y = zeros(1,2 * n_points_lr + 2 * n_points_ud);
-
-counter = 0;
-
-for l = 1:length(area_points_x)
-	
-	counter = counter + 1;
-	
-	if l <= n_points_ud
-		
-		key = 1;
-    
-        area_points_x(l) = -area_period/2 + ((area_period / n_points_ud) * counter);
-
-        area_points_y(l) = -(area_height/2 + ul_spacing);
-		
-	elseif key == 1
-		
-		counter = 1;
-		
-	end
-	
-	if n_points_ud < l && l <= n_points_ud + n_points_lr
-		
-		key = 2;
-		
-		area_points_x(l) = area_period/2;
-		area_points_y(l) = -(area_height/2 + ul_spacing) + (((2 * ul_spacing + area_height) / n_points_lr) * counter);
-		
-	elseif key == 2
-		
-		counter = 1;
-    
-	end
-	
-	if n_points_ud + n_points_lr < l && l <= 2 * n_points_ud + n_points_lr
-		
-		key = 3;
-		
-		area_points_x(l) = area_period/2 - ((area_period / n_points_ud) * counter);
-		area_points_y(l) = area_height/2 + ul_spacing;
-		
-	elseif key == 3
-		
-		counter = 1;
-		
-	end
-	
-	if 2 * n_points_ud + n_points_lr < l && l <= 2 * n_points_ud + 2 * n_points_lr
-		
-		key = 4;
-		
-		area_points_x(l) = -area_period/2;
-		area_points_y(l) = area_height/2 + ul_spacing - ((2 * ul_spacing + area_height)/n_points_lr * counter);
-		
-	elseif key == 4
-		
-		counter = 1;
-		
-	end
-	
-end
-
-%% Create Geometry Matrix
-
-geom = zeros(length(area_points_x)+n_points_cyl,7);
-
-for i = 1:length(area_points_x)-1
-	
-	geom(i,:) = [2 area_points_x(i) area_points_x(i+1) area_points_y(i) area_points_y(i+1) 2 0];
-	
-end
-
-geom(length(area_points_x),:) = [2 area_points_x(length(area_points_x)) area_points_x(1) area_points_y(length(area_points_y)) area_points_y(1) 2 0];
-
-var_len = length(area_points_x);
-
-for j = 1:n_cyl
-	
-	for i = 1:n_points_cyl-1
-		
-		geom(i+var_len,:) = [2 cyl_cell{1,j}(i) cyl_cell{1,j}(i+1) cyl_cell{2,j}(i) cyl_cell{2,j}(i+1) 1 2];%[2 cyl_peri_x(((j-1)*n_points_cyl)+i) cyl_peri_x(i+1) cyl_peri_y(i) cyl_peri_y(i+1) 1 2];
-		
-	end
-	
-	geom(n_points_cyl+var_len,:) = [2 cyl_cell{1,j}(n_points_cyl) cyl_cell{1,j}(1) cyl_cell{2,j}(n_points_cyl) cyl_cell{2,j}(1) 1 2];
-	
-	var_len = var_len + n_points_cyl;
-	
-end
-%}
 
 %% Creating CSG
 
 % Rectangle
+
 rect = [3 , 4 , -area_period/2 , area_period/2 , area_period/2 , -area_period/2 , -tot_height/2 , -tot_height/2 , tot_height/2 , tot_height/2];
 ns = char('rect');
 sf = 'rect';
+
+% Cylinders
 
 geom = zeros(length(rect),n_cyl);
 
@@ -205,17 +85,8 @@ ns = ns';
 geom = [rect',geom];
 
 %% Create Model, Geometry & Mesh
-	
-%{
-% plot(points(1,:),points(2,:),'.')
-% axis equal
 
-% [p,e,t] = initmesh(geom','hmax',hmax,'Hgrad',1.05,'MesherVersion','R2013a');
-
-% h = pdemesh(p,e,t);
-%}
-
-[dl,bt] = decsg(geom,sf,ns);
+[dl,~] = decsg(geom,sf,ns);
 
 % pdegplot(dl,'EdgeLabels','on','FaceLabels','on')
 % axis equal
@@ -282,12 +153,9 @@ for i = 1:n_tri
 	
 	area_tri_k = abs((((x2 - x1) * (y3 - y1)) - ((y2 - y1) * (x3 - x1))))/2;
 	
-	du_dx = (y3 - y1)/((y3 - y1) * (x2 - y1) - (y2 - y1) * (x3 - y1));
-	
-	dv_dx = (y2 - y1)/((y2 - y1) * (x3 - y1) - (y3 - y1) * (x2 - y1));
-	
+	du_dx =  (y3 - y1)/((y3 - y1) * (x2 - y1) - (y2 - y1) * (x3 - y1));
+	dv_dx =  (y2 - y1)/((y2 - y1) * (x3 - y1) - (y3 - y1) * (x2 - y1));
 	du_dy = -(x3 - x1)/((y3 - y1) * (x2 - y1) - (y2 - y1) * (x3 - y1));
-	
 	dv_dy = -(x2 - x1)/((y2 - y1) * (x3 - y1) - (y3 - y1) * (x2 - y1));
 	
 	d11 = (-1 * du_dx - 1 * dv_dx) * (-1 * du_dx - 1 * dv_dx) + (-1 * du_dy - 1 * dv_dy) * (-1 * du_dy - 1 * dv_dy);
@@ -304,15 +172,25 @@ for i = 1:n_tri
 	
 	Mk = (k0^2 * B - A/diel_const) * area_tri_k;
 	
-	% Top or bottom triangles.
+	
+	% Triangles bordering top or bottom edge.
 	
 	if any(i == ind_top_edge) || any(i == ind_bot_edge)
 		
-		point_vec_ud = p(1:2,t(1:3,i));
+		% Save the x and y values of the given triangle's three points.
+		
+		point_vec_ud = p(:,t(1:3,i));
+		
+		% Find which two indices have the same y value.
 		
 		ind_same_yval = logical(sum(point_vec_ud(2,:) == point_vec_ud(2,:)') - 1);
 		
+		% Length is calculated as the difference between the corresponding
+		% x values (since they have the same y value).
+		
 		edge_length = abs(diff(point_vec_ud(1,ind_same_yval)));
+		
+		% The y value is found by using the first index.
 		
 		y_val = point_vec_ud(2,find(ind_same_yval,1));
 		
@@ -330,7 +208,6 @@ for i = 1:n_tri
 	
 	M(t(1:3,i),t(1:3,i)) = M(t(1:3,i),t(1:3,i)) + Mk;
 	
-	i/n_tri*100
 	
 	% Periodic boundary conditions
 	
@@ -352,9 +229,9 @@ for i = 1:n_tri
 		
 		% x and y values of the three points in the i'th triangle.
 		
-		point_vec_lr = p(1:2,t(1:3,i));
+		point_vec_lr = p(:,t(1:3,i));
 		
-		% Check which two indices in point_vec have the same x value.
+		% Check which two indices in point_vec_lr have the same x value.
 		
 		ind_same_xval = logical(sum(point_vec_lr(1,:) == point_vec_lr(1,:)') - 1);
 		
@@ -400,7 +277,7 @@ for i = 1:n_tri
 			
 			ind_p_close = val_y_op(ind_min_op,2);
 			
-			% Change the corresponding row by introducing rows of zero.
+			% Change the corresponding row by introducing a row of zeros.
 			
 			M(ind_in_p,:) = 0;
 			
@@ -414,12 +291,14 @@ for i = 1:n_tri
 		
 	end
 	
+	i/n_tri*100
+	
 end
 
 Hv = M\bv;
 
 
-%% Edges
+%% Indices of Triangles on Edges
 
 function edge_index = edge_ind(mesh,x_or_y,num)
 	
@@ -453,14 +332,14 @@ function edge_index = edge_ind(mesh,x_or_y,num)
 	
 	% All the edges with the given edge ID.
 	
-	apt_edges = e(5,:) == edge_id;
+	apt_edges = (e(5,:) == edge_id);
 	
-	% Get the indices of the 2 points which make up the edges.
+	% Get the indices in 'p' of the 2 points which make up the edges.
 	
 	ind_edge_points = [e(1,apt_edges);e(2,apt_edges)];
 	
 	% Get indices of triangle array 't' which include two points on
-	% selected edge 
+	% selected edge.
 	
 	ind_tri = ceil(find(ismember(t(1:3,:),ind_edge_points))/3);
 	
