@@ -7,7 +7,6 @@ clc
 
 di_const1 = 1;
 di_const2 = 12;
-% di_const2 = 2;
 
 hmax = 2 * pi * 10 / 20;
 
@@ -173,7 +172,7 @@ for i = 1:n_tri
 	Mk = (k0^2 * B - A/diel_const) * area_tri_k;
 	
 	
-	% Triangles bordering top or bottom edge.
+	% Triangles with a side touching top or bottom edge.
 	
 	if any(i == ind_top_edge) || any(i == ind_bot_edge)
 		
@@ -213,9 +212,9 @@ for i = 1:n_tri
 end
 
 
+% Periodic boundary conditions
+
 for i = 1:n_tri
-	
-	% Periodic boundary conditions
 	
 	if any(i == ind_left_edge) || any(i == ind_right_edge)
 		
