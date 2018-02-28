@@ -208,6 +208,12 @@ for i = 1:n_tri
 	
 	M(t(1:3,i),t(1:3,i)) = M(t(1:3,i),t(1:3,i)) + Mk;
 	
+	i/n_tri*100
+	
+end
+
+
+for i = 1:n_tri
 	
 	% Periodic boundary conditions
 	
