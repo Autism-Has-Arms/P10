@@ -3,14 +3,14 @@ d = 100;
 lambda = 700;
 k_0 = 2*pi/lambda;
 p = 2000;
-q = 10000;
+q = 4000;
 nr = linspace(0,6,p);
-ni = linspace(0,6,2*q);
+ni = linspace(0,6,q);
 n = nr + 1i*ni';
 a = 1i*k_0*d*n;
 r = 0.13;
 t = 0.4;
-f = ((exp(2*a) - 1) + sqrt( (1-exp(2*a)).^2 + 4*r^2*exp(2*1) ))/(2*r*exp(2*a)) - sqrt(( exp(a) - t )/( exp(a) - t*exp(2*a) ));
+f = (((exp(2*a) - 1) + sqrt( (1-exp(2*a)).^2 + 4*r^2*exp(2*1) ))/(2*r*exp(2*a)) - sqrt(( exp(a) - t )/( exp(a) - t*exp(2*a) )));
 
 for k=1:p-1
     for l=1:q-1
@@ -19,6 +19,7 @@ for k=1:p-1
         d2 = abs( atan(imag(f(k,l))/real(f(k,l))) - atan(imag(f(k,l+1))/real(f(k,l+1))) );
         d3 = abs( atan(imag(f(k+1,l))/real(f(k+1,l))) - atan(imag(f(k+1,l+1))/real(f(k+1,l+1))) );
         d4 = abs( atan(imag(f(k,l+1))/real(f(k,l+1))) - atan(imag(f(k+1,l+1))/real(f(k+1,l+1))) );
+        f(k,l)
 %         d1
 %         d2
 %         d3
@@ -45,14 +46,20 @@ for k=1:p-1
     end
 end
 
-% for k=1:q
-%     for l=1:q
-%         if f(k,l)<0.01
-%             nr(k)
-%             ni(l)
-%         end
-%     end
+
+% function phase(f)
+% if real(f) == 0 && imag(f) > 0
+%     phase(f) = pi/2
+% end
+% if real(f) == 0 && imag(f) < 0
+%     phase(f) = -pi/2
+% end
+% if real(f) > 0
+%     phase(f) = atan(imag(f)/real(f))
+% end
+% if real(f) < 0
+%     phase(f) = atan(imag(f)/real(f)) + pi
+% end
+% 
 % end
 
-% surf(nr,ni,f)
-% shading interp
