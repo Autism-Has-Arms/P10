@@ -169,7 +169,7 @@ for i = 1:n_tri
 	
 	A = area_tri_k * [d11 d12 d13 ; d21 d22 d23 ; d31 d32 d33];
 	
-	Mk = (k0^2 * B - A/diel_const) * area_tri_k;
+	Mk = k0^2 * B * area_tri_k - A/diel_const;
 	
 	
 	% Triangles with a side touching top or bottom edge.
@@ -182,7 +182,7 @@ for i = 1:n_tri
 		
 		% Find which two indices have the same y value.
 		
-		ind_same_yval = logical(sum(point_vec_ud(2,:) == point_vec_ud(2,:)') - 1);
+		ind_same_yval = logical(sum(repmat(point_vec_ud(2,:),3,1) == repmat(point_vec_ud(2,:)',1,3)) - 1);
 		
 		% Length is calculated as the difference between the corresponding
 		% x values (since they have the same y value).
@@ -199,7 +199,10 @@ for i = 1:n_tri
 		
 		bv(t(ind_same_yval,i)) = bk;
 		
-		C = 1i * edge_length * sqrt(diel_const) * k0 * (1/diel_const) * [2 1 0 ; 1 2 0 ; 0 0 0]/6;
+		temp_mat = zeros(3);
+		temp_mat(ind_same_yval,ind_same_yval) = [2 1 ; 1 2];
+		
+		C = 1i * edge_length * sqrt(diel_const) * k0 * (1/diel_const) * temp_mat/6;
 		
 		Mk = Mk + C;
 		
@@ -284,7 +287,7 @@ for i = 1:n_tri
 			
 			% Change the corresponding row by introducing a row of zeros.
 			
-% 			M(ind_in_p,:) = 0;
+			M(ind_in_p,:) = 0;
 			
 			M(sub2ind(size(M),ind_in_p,ind_in_p)) = 1;
 			
@@ -301,6 +304,9 @@ for i = 1:n_tri
 end
 
 Hv = M\bv;
+
+pdeplot(p,e,t,'xydata',abs(Hv))
+axis equal
 
 
 %% Indices of Triangles on Edges
