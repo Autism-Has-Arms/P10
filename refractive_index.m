@@ -15,10 +15,10 @@ f = (((exp(2*a) - 1) + sqrt( (1-exp(2*a)).^2 + 4*(r^2)*exp(2*a) ))./(2*r*exp(2*a
 for l=1:p-1
     for k=1:q-1
         counter = 0;
-        d1 = abs( atan(imag(f(k,l))/real(f(k,l))) - atan(imag(f(k+1,l))/real(f(k+1,l))) );
-        d2 = abs( atan(imag(f(k,l))/real(f(k,l))) - atan(imag(f(k,l+1))/real(f(k,l+1))) );
-        d3 = abs( atan(imag(f(k+1,l))/real(f(k+1,l))) - atan(imag(f(k+1,l+1))/real(f(k+1,l+1))) );
-        d4 = abs( atan(imag(f(k,l+1))/real(f(k,l+1))) - atan(imag(f(k+1,l+1))/real(f(k+1,l+1))) );
+        d1 = abs( phase(f(k,l)) - phase(f(k+1,l)) );
+        d2 = abs( phase(f(k,l)) - phase(f(k,l+1)) );
+        d3 = abs( phase(f(k+1,l)) - phase(f(k+1,l+1)) );
+        d4 = abs( phase(f(k,l+1)) - phase(f(k+1,l+1)) );
         f(k,l);
 %         d1
 %         d2
