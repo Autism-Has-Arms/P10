@@ -12,8 +12,8 @@ r = 0.13;
 t = 0.4;
 f = (((exp(2*a) - 1) + sqrt( (1-exp(2*a)).^2 + 4*(r^2)*exp(2*a) ))./(2*r*exp(2*a))) - sqrt(( exp(a) - t )./( exp(a) - t*exp(2*a) ));
 
-for k=1:p-1
-    for l=1:q-1
+for l=1:p-1
+    for k=1:q-1
         counter = 0;
         d1 = abs( atan(imag(f(k,l))/real(f(k,l))) - atan(imag(f(k+1,l))/real(f(k+1,l))) );
         d2 = abs( atan(imag(f(k,l))/real(f(k,l))) - atan(imag(f(k,l+1))/real(f(k,l+1))) );
