@@ -47,19 +47,29 @@ for k=1:p-1
 end
 
 
-% function phase(f)
-% if real(f) == 0 && imag(f) > 0
-%     phase(f) = pi/2
-% end
-% if real(f) == 0 && imag(f) < 0
-%     phase(f) = -pi/2
-% end
-% if real(f) > 0
-%     phase(f) = atan(imag(f)/real(f))
-% end
-% if real(f) < 0
-%     phase(f) = atan(imag(f)/real(f)) + pi
-% end
-% 
-% end
+function f = phase(f)
+
+	if real(f) == 0 && imag(f) > 0
+		
+		f = pi/2;
+		
+	elseif real(f) == 0 && imag(f) < 0
+		
+		f = -pi/2;
+		
+	elseif real(f) > 0
+		
+		f = atan(imag(f)/real(f));
+		
+	elseif real(f) < 0
+		
+		f = atan(imag(f)/real(f)) + pi;
+		
+	else
+		
+		error('None of the conditionals selected.')
+		
+	end
+
+end
 
