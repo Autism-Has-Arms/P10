@@ -278,9 +278,9 @@ for i = 1:n_tri
 		end
 			
 		% Check whether the exclusion of duplicate indices empties the
-		% variable.
+		% variable. If true, skip iteration.
 		
-		if ~isempty(ind_in_p)
+		if isempty(ind_in_p)
 			
 			continue
 			
@@ -310,7 +310,7 @@ for i = 1:n_tri
 
 		ind_p_close = val_y_op(ind_min_op,2);
 
-		% Change the corresponding row by introducing a row of zeros.
+		% Setting a row to zero.
 
 		M(ind_in_p,:) = 0;
 
@@ -334,7 +334,9 @@ for i = 1:n_tri
 		
 end
 
-Hv = M\bv;
+Hv = lsqminnorm(M,bv);
+
+% Hv = M\bv;
 
 pdeplot(p,e,t,'xydata',abs(Hv))
 axis equal

@@ -17,7 +17,7 @@ function pct = disppct(varargin)
 
         if pct ~= pct1
 
-            dispstat(['Progress #' num2str(n) ': ' num2str(pct1) '%'],'timestamp');
+            dispstat(['For-loop #' num2str(n) ': ' num2str(pct1) '%'],'timestamp');
 
             pct = pct1;
 
