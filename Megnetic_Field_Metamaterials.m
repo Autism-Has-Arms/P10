@@ -247,10 +247,6 @@ for i = 1:n_tri
 		elseif any(i == ind_left_edge)
 				
 			ind_opposite = ind_right_edge;
-				
-		else
-			
-			error('i is neither in left or right.')
 		
 		end
 		
@@ -269,11 +265,11 @@ for i = 1:n_tri
 		% Compare with saved indices to see check if point has already been
 		% considered.
 		
-		if ~isempty(ind_saved) && any(any((ind_in_p == ind_saved)'))
+		if ~isempty(ind_saved) && any(any((ind_in_p == repmat(ind_saved,length(ind_in_p),1))'))
 			
 			% Removes an index if it has already been counted.
 			
-			ind_in_p = ind_in_p(not(any((ind_in_p == ind_saved)')));
+			ind_in_p = ind_in_p(not(any((ind_in_p == repmat(ind_saved,length(ind_in_p),1))')));
 			
 		end
 			
