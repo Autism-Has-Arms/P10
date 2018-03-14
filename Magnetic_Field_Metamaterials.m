@@ -160,10 +160,10 @@ for i = 1:n_tri
 	
 	area_tri_k = abs((((x2 - x1) * (y3 - y1)) - ((y2 - y1) * (x3 - x1))))/2;
 	
-	du_dx =  (y3 - y1)/((y3 - y1) * (x2 - y1) - (y2 - y1) * (x3 - y1));
-	dv_dx =  (y2 - y1)/((y2 - y1) * (x3 - y1) - (y3 - y1) * (x2 - y1));
-	du_dy = -(x3 - x1)/((y3 - y1) * (x2 - y1) - (y2 - y1) * (x3 - y1));
-	dv_dy = -(x2 - x1)/((y2 - y1) * (x3 - y1) - (y3 - y1) * (x2 - y1));
+	du_dx =  (y3 - y1)/((y3 - y1) * (x2 - x1) - (y2 - y1) * (x3 - x1));
+	dv_dx =  (y2 - y1)/((y2 - y1) * (x3 - x1) - (y3 - y1) * (x2 - x1));
+	du_dy = -(x3 - x1)/((y3 - y1) * (x2 - x1) - (y2 - y1) * (x3 - x1));
+	dv_dy = -(x2 - x1)/((y2 - y1) * (x3 - x1) - (y3 - y1) * (x2 - x1));
 	
 	d11 = (-1 * du_dx - 1 * dv_dx) * (-1 * du_dx - 1 * dv_dx) + (-1 * du_dy - 1 * dv_dy) * (-1 * du_dy - 1 * dv_dy);
 	d12 = (-1 * du_dx - 1 * dv_dx) * (+1 * du_dx + 0 * dv_dx) + (-1 * du_dy - 1 * dv_dy) * (+1 * du_dy + 0 * dv_dy);
@@ -197,15 +197,19 @@ for i = 1:n_tri
 		
 		edge_length = abs(diff(point_vec_ud(1,ind_same_yval)));
 		
-		% The y value is found by using the first index.
+		if any(i == ind_top_edge)
 		
-		y_val = point_vec_ud(2,find(ind_same_yval,1));
+			% The y value is found by using the first index.
+
+			y_val = point_vec_ud(2,find(ind_same_yval,1));
+
+			H0 = exp(-1i * k0 * diel_const * y_val);
+
+			bk = 1i * k0 * diel_const * H0 * edge_length;
 		
-		H0 = exp(-1i * k0 * diel_const * y_val);
+			bv(t(ind_same_yval,i)) = bv(t(ind_same_yval,i)) + bk; %<-- Husk vinkelafhængig.
 		
-		bk = 1i * k0 * diel_const * H0 * edge_length;
-		
-		bv(t(ind_same_yval,i)) = bk;
+		end
 		
 		temp_mat = zeros(3);
 		temp_mat(ind_same_yval,ind_same_yval) = [2 1 ; 1 2];
@@ -216,7 +220,7 @@ for i = 1:n_tri
 		
 	end
 	
-	M(t(1:3,i),t(1:3,i)) = M(t(1:3,i),t(1:3,i))) + Mk;
+	M(t(1:3,i),t(1:3,i)) = M(t(1:3,i),t(1:3,i)) + Mk;
 	
 	
 	
@@ -238,17 +242,17 @@ end
 
 for i = 1:n_tri
 	
-	if any(i == ind_left_edge) || any(i == ind_right_edge)
+	if any(i == ind_left_edge)% || any(i == ind_right_edge)
 		
-		if any(i == ind_right_edge)
+% 		if any(i == ind_right_edge)
 				
-			ind_opposite = ind_left_edge;
+% 			ind_opposite = ind_left_edge;
 				
-		elseif any(i == ind_left_edge)
+% 		elseif any(i == ind_left_edge)
 				
-			ind_opposite = ind_right_edge;
+		ind_opposite = ind_right_edge;
 		
-		end
+% 		end
 		
 		% x and y values of the three points in the i'th triangle.
 		
@@ -330,9 +334,9 @@ for i = 1:n_tri
 		
 end
 
-Hv = lsqminnorm(M,bv);
+% Hv = lsqminnorm(M,bv);
 
-% Hv = M\bv;
+Hv = M\bv;
 
 pdeplot(p,e,t,'xydata',abs(Hv))
 axis equal
