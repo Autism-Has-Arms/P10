@@ -23,13 +23,8 @@ di_const1 = n1^2;
 di_const2 = n2^2;
 
 % Determines maximum size of elements. Therefore larger values of hmax
-% creates fewer elements. 
+% creates fewer elements. Halving hmax from 2pi
 hmax = 2 * pi * 10 / 20;
-
-% Test of script duartion:
-% Halving hmax from 2pi*10/10 to 2pi*10/20
-% increased the scrpt duration 4 times, while halving it again from
-% 2pi*10/20 to 2pi*10/40 increased the duration 10 times.
 
 
 k0 = 2*pi/lambda;
@@ -37,7 +32,7 @@ k0 = 2*pi/lambda;
 
 %% Cylinder specifics
 
-n_cyl = 7;
+n_cyl = 12;
 r_cyl = 10;
 cyl_period = 50;
 
