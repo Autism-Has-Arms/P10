@@ -19,8 +19,8 @@ for h=1:length(wavelength)
     % Defines the grid for which the function is calculated.
     p = 4000;
     q = 4000;
-    nr = linspace(0.5,1.5,p);
-    ni = linspace(0.5,1.5,q);
+    nr = linspace(0.1,5,p);
+    ni = linspace(0.1,5,q);
     
     % n is the matrix contaning the points in the complex plane for which
     % f is calculated.
@@ -100,9 +100,9 @@ for h=1:length(wavelength)
     end
 end
 
-% surf(nr,ni,phase_plot)
-% shading interp
-% view(2)
+surf(nr,ni,phase_plot)
+shading interp
+view(2)
 % calculated the phase for a given complex number. Note that the phase goes
 % from -pi/2 to 3pi/2. For a complex number = 0, the phase is undefined,
 % and the functions returns an error.
