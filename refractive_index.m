@@ -17,8 +17,8 @@ for h=1:length(wavelength)
     k_0 = 2*pi/lambda;
     
     % Defines the grid for which the function is calculated.
-    p = 4000;
-    q = 4000;
+    p = 3000;
+    q = 3000;
     nr = linspace(0.1,5,p);
     ni = linspace(0.1,5,q);
     
@@ -39,6 +39,7 @@ for h=1:length(wavelength)
     % Phase_plot is only used to to get a view of the phase of f in the
     % comple plane nr + ni. This is not needed for the script to find the
     % zero-points.
+    counter2 = 0;
     phase_plot = zeros(q,p);
     for l=1:p-1
         for k=1:q-1
@@ -71,23 +72,25 @@ for h=1:length(wavelength)
             % If only one edge has a large change in phase, the rectangle
             % contains a singularity.
             if counter == 1 %&& abs(f(k,l)) < 0.3 && abs(nr(l)) > 0.1
-            h
-            k
-            l
+%             h
+%             k
+%             l
             
             %nr(l) and ni(k) gives the real and imaginary value for n at
             %the point which is the first corner of the trianle containing
             %the singularity.
-            nr(l)
-            ni(k)
+            counter2 = counter2 + 1;
+            counter2
+            nr(l) + i*ni(k)
+            
             
             % f of n is printed to show that the point which has been found
             % is indeed a value for which f is zero. f(k,l) should
             % therefore be a very low value.
             f(k,l)
-            f(k,l+1)
-            f(k+1,l)
-            f(k+1,l+1)
+%             f(k,l+1)
+%             f(k+1,l)
+%             f(k+1,l+1)
             % Once a point has been found is is added to a list.
             r_index(h,1) = r_index(h,1) + nr(l) + 1i*ni(k);
             end
