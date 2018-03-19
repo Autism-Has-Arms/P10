@@ -67,6 +67,8 @@ else
 	
 end
 
+cent_cyl = [cyl_cent_x ; cyl_cent_y];
+
 
 %% Area specifics
 
@@ -78,44 +80,44 @@ tot_height = ul_spacing + area_height;
 
 %% Creating CSG
 
+a = csg;
+
 % Rectangle
 
-rect = [3 , 4 , area_width/2 , -area_width/2 , -area_width/2 , area_width/2 , tot_height/2 , tot_height/2 , -tot_height/2 , -tot_height/2];
-ns = char('rect');
-sf = 'rect';
+a.create_csg('rectangle',area_width,tot_height);
 
 % Gold rectangle
 
-gold_rect = [3 , 4 , area_width/2 , -area_width/2 , -area_width/2 , area_width/2 , area_height/2 , area_height/2 , -area_height/2 , -area_height/2];
-ns = char(ns,'rect_g');
+% gold_rect = [3 , 4 , area_width/2 , -area_width/2 , -area_width/2 , area_width/2 , area_height/2 , area_height/2 , -area_height/2 , -area_height/2];
+% ns = char(ns,'rect_g');
 
-%{
+%%{
 % Cylinders
 
-geom = zeros(length(rect),n_cyl);
+% geom = zeros(length(rect),n_cyl);
 
 for i = 1:n_cyl
+	
+	a.create_csg('circle',cent_cyl(:,i),r_cyl);
 
-	geom(:,i) = [1 , cyl_cent_x(i) , cyl_cent_y(i) , r_cyl , zeros(1,length(rect) - 4)]';
-	
-	ns = char(ns,['circ',num2str(i)]);
-	
-	sf = [sf,'+',ns(i+1,:)];
+% 	geom(:,i) = [1 , cyl_cent_x(i) , cyl_cent_y(i) , r_cyl , zeros(1,length(rect) - 4)]';
+% 	
+% 	ns = char(ns,['circ',num2str(i)]);
+% 	
+% 	sf = [sf,'+',ns(i+1,:)];
 	
 end
 
-geom = [rect',geom];
-%}
+% geom = [rect',geom];
+%%}
 
-sf = [sf,'+rect_g'];
+% ns = ns';
 
-ns = ns';
-
-geom = [rect',gold_rect'];
+% geom = [rect',gold_rect'];
 
 %% Create Model, Geometry & Mesh
 
-[dl,~] = decsg(geom,sf,ns);
+[dl,~] = decsg(a.geom,a.sf,a.ns);
 
 % pdegplot(dl,'EdgeLabels','on','FaceLabels','on')
 % axis equal
@@ -132,16 +134,11 @@ mesh = generateMesh(model,'Hmax',hmax,'Hgrad',1.05,'GeometricOrder','linear');
 
 [p,e,t] = meshToPet(mesh);
 
-point_x_val = p(1,:);
-point_y_val = p(2,:);
-
-n_nodes = length(point_x_val);
-
 n_tri = length(mesh.Elements(1,:));
 
 B = [2 1 1 ; 1 2 1 ; 1 1 2]/12;
 
-M = sparse(n_nodes,n_nodes);
+M = sparse(size(mesh.Nodes,2),size(mesh.Nodes,2));
 
 ind_top_edge = edge_ind(mesh,'y',tot_height/2);
 
@@ -161,7 +158,7 @@ for i = 1:n_tri
 	
 	zone = t(end,i);
 	
-	if zone == 1 || zone == 2
+	if zone == 2
 		
 		diel_const = di_const1;
 		
@@ -424,7 +421,7 @@ csvv = [lambda,n2,2*(max(cyl_cent_y) + cyl_period/2),refl,val_y_t];
 
 function edge_index = edge_ind(mesh,x_or_y,num)
 	
-	% Gives indices of triangles on selected edge.
+	% Gives indices of triangles (in array 't') on selected edge.
 
 	switch x_or_y
 		
