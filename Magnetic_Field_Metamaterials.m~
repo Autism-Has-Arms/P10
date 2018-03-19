@@ -124,7 +124,7 @@ geometryFromEdges(model,dl);
 
 mesh = generateMesh(model,'Hmax',hmax,'Hgrad',1.05,'GeometricOrder','linear');
 
-% pdeplot(model);asd
+pdeplot(model);
 
 %% Triangle Manipulation
 
@@ -402,7 +402,7 @@ wavelength = lambda;
 
 %% Writing to file
 
-save('Struct_data.mat','wavelength','ref_index','distance','reflectance','transmittance');
+save('Bulk_data.mat','wavelength','ref_index','distance','reflectance','transmittance');
 
 %{
 

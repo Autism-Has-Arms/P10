@@ -72,7 +72,7 @@ end
 
 ul_spacing = 1400;
 area_width = 30;
-area_height = 2*(max(cyl_cent_y) + cyl_period/2);
+area_height = 2*(max(cyl_cent_y) + cyl_period/2) + 100;
 tot_height = ul_spacing + area_height;
 
 
@@ -124,7 +124,7 @@ geometryFromEdges(model,dl);
 
 mesh = generateMesh(model,'Hmax',hmax,'Hgrad',1.05,'GeometricOrder','linear');
 
-% pdeplot(model);asd
+% pdeplot(model);
 
 %% Triangle Manipulation
 
@@ -402,7 +402,7 @@ wavelength = lambda;
 
 %% Writing to file
 
-save('Struct_data.mat','wavelength','ref_index','distance','reflectance','transmittance');
+save('Bulk_data+100.mat','wavelength','ref_index','distance','reflectance','transmittance');
 
 %{
 
