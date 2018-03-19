@@ -1,22 +1,26 @@
-cac = data();
+% clear all
+% cac = data();
 
-% data = load('testdata1.txt');
-wavelength = cac{1};
-R = cac{2};
-T = cac{3};
+load('Struct_data.mat');
+% wavelength = cac{1};
+% R = cac{2};
+% T = cac{3};
+R = reflectance;
+T = transmittance;
 
 r_index = zeros(length(wavelength),1);
 
-for h=3:4
-    d = 100;
+for h=1:length(wavelength)
+    d = distance(h);
+%     d = 100;
     lambda = wavelength(h);
     k_0 = 2*pi/lambda;
     
     % Defines the grid for which the function is calculated.
-    p = 500;
-    q = 500;
-    nr = linspace(0.1,6,p);
-    ni = linspace(0.1,6,q);
+    p = 4000;
+    q = 4000;
+    nr = linspace(0.5,1.5,p);
+    ni = linspace(0.5,1.5,q);
     
     % n is the matrix contaning the points in the complex plane for which
     % f is calculated.
@@ -26,9 +30,9 @@ for h=3:4
     
     % R and T are vectors containing the reflectivity and transmitivity for
     % different measurements.
-    r = R(h);
-    t = T(h);
-    
+     r = R(h);
+     t = T(h);
+
     % Define the function you want to find zeros for. 
     f = (((exp(2*a) - 1) + sqrt( (1-exp(2*a)).^2 + 4*(r^2)*exp(2*a) ))./(2*r*exp(2*a))) - sqrt(( exp(a) - t )./( exp(a) - t*exp(2*a) ));
     
@@ -51,37 +55,39 @@ for h=3:4
             
             % Counter starts as 0, and is increased by 1 for each edge of
             % the tringle that has a large change in phase.
-            if d1 > pi
+            if d1 > 1.0*pi
                 counter = counter+1;
             end
-            if d2 > pi
+            if d2 > 1.0*pi
                 counter = counter+1;
             end
-            if d3 > pi
+            if d3 > 1.0*pi
                 counter = counter+1;
             end
-            if d4 > pi
+            if d4 > 1.0*pi
                 counter = counter+1;
             end
             
             % If only one edge has a large change in phase, the rectangle
             % contains a singularity.
-            if counter == 1
+            if counter == 1 %&& abs(f(k,l)) < 0.3 && abs(nr(l)) > 0.1
             h
             k
             l
             
-            %nr(k) and ni(l) gives the real and imaginary value for n at
+            %nr(l) and ni(k) gives the real and imaginary value for n at
             %the point which is the first corner of the trianle containing
             %the singularity.
-            nr(k)
-            ni(l)
+            nr(l)
+            ni(k)
             
             % f of n is printed to show that the point which has been found
             % is indeed a value for which f is zero. f(k,l) should
             % therefore be a very low value.
             f(k,l)
-            
+            f(k,l+1)
+            f(k+1,l)
+            f(k+1,l+1)
             % Once a point has been found is is added to a list.
             r_index(h,1) = r_index(h,1) + nr(l) + 1i*ni(k);
             end
@@ -94,6 +100,9 @@ for h=3:4
     end
 end
 
+% surf(nr,ni,phase_plot)
+% shading interp
+% view(2)
 % calculated the phase for a given complex number. Note that the phase goes
 % from -pi/2 to 3pi/2. For a complex number = 0, the phase is undefined,
 % and the functions returns an error.
@@ -107,9 +116,13 @@ function f = phase(f)
 		
 		f = -pi/2;
 		
-	elseif real(f) > 0
+	elseif real(f) > 0 && imag(f) < 0
 		
-		f = atan(imag(f)/real(f));
+		f = atan(imag(f)/real(f)) + 2*pi;
+    
+    elseif real(f) > 0 && imag(f) > 0
+        
+        f = atan(imag(f)/real(f));
 		
 	elseif real(f) < 0
 		
