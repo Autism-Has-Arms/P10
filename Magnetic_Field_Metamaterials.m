@@ -71,8 +71,8 @@ end
 %% Area specifics
 
 ul_spacing = 1400;
-area_period = 30;
-area_height = max(cyl_cent_y) + r_cyl;
+area_width = 30;
+area_height = 2*(max(cyl_cent_y) + cyl_period/2);
 tot_height = ul_spacing + area_height;
 
 
@@ -80,10 +80,16 @@ tot_height = ul_spacing + area_height;
 
 % Rectangle
 
-rect = [3 , 4 , -area_period/2 , area_period/2 , area_period/2 , -area_period/2 , -tot_height/2 , -tot_height/2 , tot_height/2 , tot_height/2];
+rect = [3 , 4 , area_width/2 , -area_width/2 , -area_width/2 , area_width/2 , tot_height/2 , tot_height/2 , -tot_height/2 , -tot_height/2];
 ns = char('rect');
 sf = 'rect';
 
+% Gold rectangle
+
+gold_rect = [3 , 4 , area_width/2 , -area_width/2 , -area_width/2 , area_width/2 , area_height/2 , area_height/2 , -area_height/2 , -area_height/2];
+ns = char(ns,'rect_g');
+
+%{
 % Cylinders
 
 geom = zeros(length(rect),n_cyl);
@@ -98,9 +104,12 @@ for i = 1:n_cyl
 	
 end
 
+geom = [rect',geom];
+%}
+
 ns = ns';
 
-geom = [rect',geom];
+geom = [rect',gold_rect'];
 
 %% Create Model, Geometry & Mesh
 
@@ -136,9 +145,9 @@ ind_top_edge = edge_ind(mesh,'y',tot_height/2);
 
 ind_bot_edge = edge_ind(mesh,'y',-tot_height/2);
 
-ind_right_edge = edge_ind(mesh,'x',area_period/2);
+ind_right_edge = edge_ind(mesh,'x',area_width/2);
 
-ind_left_edge = edge_ind(mesh,'x',-area_period/2);
+ind_left_edge = edge_ind(mesh,'x',-area_width/2);
 
 ind_saved = [];
 
@@ -377,15 +386,15 @@ axis([-tot_height tot_height -1.5 1.5])
 
 %% Calculating transmittance and reflectance etc.
 
-val_y_t = evaluate(int_F_com,[0 ; min(cyl_cent_y) - cyl_period/2]);
+val_y_t = evaluate(int_F,[0 ; min(cyl_cent_y) - cyl_period/2]);
 
-val_y_r = evaluate(int_F_com,[0 ; max(cyl_cent_y) + cyl_period/2]);
+val_y_r = evaluate(int_F,[0 ; max(cyl_cent_y) + cyl_period/2]);
 
 reflectance = val_y_r - exp(-i*k0*n1*max(cyl_cent_y) + cyl_period/2);
 
 transmittance = val_y_t';
 
-distance = 2*(max(cyl_cent_y) + cyl_period/2);
+distance = area_height;
 
 ref_index = n2;
 
