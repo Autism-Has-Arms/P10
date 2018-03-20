@@ -25,17 +25,17 @@ function pct = disppct(varargin)
 
         if count == lngt
             
-            if n == 2
-
-                dispstat('Finished.','keepprev','timestamp');
-                
-            else
+%             if n == 2
+% 
+%                 dispstat('Finished.','keepprev','timestamp');
+%                 
+%             else
                 
                 dispstat(' ','keepprev');
 				
 				pct = 0;
                 
-            end
+%             end
 
         end
 

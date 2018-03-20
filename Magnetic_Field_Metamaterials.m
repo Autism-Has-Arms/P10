@@ -2,14 +2,28 @@ clear all
 close all
 clc
 
+
 %% Initialisation
 
 if exist('disppct.m','file') == 2 && exist('dispstat.m','file') == 2
-	
+
 	pct = disppct;
-		
+
 end
 
+% var_array = linspace(20,50,31);
+% 
+% reflectance = zeros(1,length(var_array));
+% 
+% transmittance = zeros(1,length(var_array));
+% 
+% distance = zeros(1,length(var_array));
+% 
+% ref_index = zeros(1,length(var_array));
+% 
+% wavelength = zeros(1,length(var_array));
+% 
+% for k = 1:length(var_array)
 
 %% Parameters
 
@@ -38,7 +52,7 @@ k0 = 2*pi/lambda;
 
 n_cyl = 10;
 r_cyl = 10;
-cyl_period = 30;
+cyl_period = %30;
 
 
 %% Centres of cylinders.
@@ -245,7 +259,7 @@ for i = 1:n_tri
 	
 	if exist('disppct.m','file') == 2 && exist('dispstat.m','file') == 2
 	
-		pct = disppct(i,n_tri,pct,1);
+		pct = disppct(i,n_tri,pct,2*k-1);
 		
 	else
 		
@@ -261,17 +275,9 @@ end
 
 for i = 1:n_tri
 	
-	if any(i == ind_left_edge)% || any(i == ind_right_edge)
-		
-% 		if any(i == ind_right_edge)
-				
-% 			ind_opposite = ind_left_edge;
-				
-% 		elseif any(i == ind_left_edge)
+	if any(i == ind_left_edge)
 				
 		ind_opposite = ind_right_edge;
-		
-% 		end
 		
 		% x and y values of the three points in the i'th triangle.
 		
@@ -343,7 +349,7 @@ for i = 1:n_tri
 	
 	if exist('disppct.m','file') == 2 && exist('dispstat.m','file') == 2
 	
-		pct = disppct(i,n_tri,pct,2);
+		pct = disppct(i,n_tri,pct,2*k);
 		
 	else
 		
@@ -357,11 +363,11 @@ end
 
 Hv = M\bv;
 
-pdeplot(p,e,t,'xydata',abs(Hv))
-hold on
-pdegplot(dl)
-axis equal
-colormap gray 
+% pdeplot(p,e,t,'xydata',abs(Hv))
+% hold on
+% pdegplot(dl)
+% axis equal
+% colormap gray 
 
 
 %% Plotting values of line down through structure
@@ -376,11 +382,11 @@ int_F = pdeInterpolant(p,t,Hv);
 
 line_abs = abs(evaluate(int_F,[line_x;line_y]));
 
-figure(2)
+% figure(2)
 
-plot(line_y,line_abs)
+% plot(line_y,line_abs)
 
-axis([-tot_height tot_height -1.5 1.5])
+% axis([-tot_height tot_height -1.5 1.5])
 
 
 %% Calculating transmittance and reflectance etc.
@@ -403,9 +409,22 @@ ref_index = n2;
 
 wavelength = lambda;
 
+
+% reflectance(k) = val_y_r - exp(-i*k0*n1*max(cyl_cent_y) + cyl_period/2);
+% 
+% transmittance(k) = val_y_t';
+% 
+% distance(k) = area_height;
+% 
+% ref_index(k) = n2;
+% 
+% wavelength(k) = lambda;
+% 
+% end
+
 %% Writing to file
 
-save('Struct_data.mat','wavelength','ref_index','distance','reflectance','transmittance');
+save('Var=cyl_period,[20,50],n=31.mat','wavelength','ref_index','distance','reflectance','transmittance');%,'var_array');
 
 %{
 
