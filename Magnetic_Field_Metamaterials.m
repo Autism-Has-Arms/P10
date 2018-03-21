@@ -184,6 +184,7 @@ for k = 1:length(var_len)
 	for i = 1:n_tri
 
 		zone = t(end,i);
+	if zone == 1 || zone == 2
 
 		if zone == 2
 
@@ -405,17 +406,21 @@ ref_index = n2;
 
 	%% Calculating transmittance and reflectance etc.
 
-	val_y_t = evaluate(int_F,[0 ; min(cyl_cent_y) - cyl_period/2]);
+val_y_t = evaluate(int_F,[0 ; -tot_height/2]);
 
-	val_y_r = evaluate(int_F,[0 ; max(cyl_cent_y) + cyl_period/2]);
+val_y_r = evaluate(int_F,[0 ; tot_height/2]);
 
-	reflectance(k) = val_y_r - exp(-i*k0*n1*max(cyl_cent_y) + cyl_period/2);
+y0 = area_height/2;
 
-	transmittance(k) = val_y_t';
+H0 = exp(-1i*k0*n1*tot_height/2);
 
-	distance(k) = area_height;
+reflectance = (val_y_r - H0) * exp(2i*k0*n1*y0) * exp(-1i*k0*n1*tot_height/2);
 
-	ref_index(k) = n2;
+transmittance = val_y_t * exp(1i*k0*n1*y0) * exp(1i*k0*n1*(tot_height/2 + y0));
+
+distance = 2 * y0;
+
+ref_index = n2;
 
 	wavelength(k) = lambda;
 	
