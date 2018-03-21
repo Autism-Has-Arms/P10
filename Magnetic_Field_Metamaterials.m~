@@ -72,7 +72,7 @@ end
 
 ul_spacing = 1400;
 area_width = 30;
-area_height = 2*(max(cyl_cent_y) + cyl_period/2);
+area_height = 10;%2*(max(cyl_cent_y) + cyl_period/2) + 100;
 tot_height = ul_spacing + area_height;
 
 
@@ -107,6 +107,8 @@ end
 geom = [rect',geom];
 %}
 
+sf = [sf,'+rect_g'];
+
 ns = ns';
 
 geom = [rect',gold_rect'];
@@ -124,7 +126,7 @@ geometryFromEdges(model,dl);
 
 mesh = generateMesh(model,'Hmax',hmax,'Hgrad',1.05,'GeometricOrder','linear');
 
-pdeplot(model);
+% pdeplot(model);
 
 %% Triangle Manipulation
 
@@ -159,7 +161,7 @@ for i = 1:n_tri
 	
 	zone = t(end,i);
 	
-	if zone == 1
+	if zone == 1 || zone == 2
 		
 		diel_const = di_const1;
 		
@@ -386,15 +388,19 @@ axis([-tot_height tot_height -1.5 1.5])
 
 %% Calculating transmittance and reflectance etc.
 
-val_y_t = evaluate(int_F,[0 ; min(cyl_cent_y) - cyl_period/2]);
+val_y_t = evaluate(int_F,[0 ; -tot_height/2]);
 
-val_y_r = evaluate(int_F,[0 ; max(cyl_cent_y) + cyl_period/2]);
+val_y_r = evaluate(int_F,[0 ; tot_height/2]);
 
-reflectance = val_y_r - exp(-i*k0*n1*max(cyl_cent_y) + cyl_period/2);
+y0 = area_height/2;
 
-transmittance = val_y_t';
+H0 = exp(-1i*k0*n1*tot_height/2);
 
-distance = area_height;
+reflectance = (val_y_r - H0) * exp(2i*k0*n1*y0) * exp(-1i*k0*n1*tot_height/2);
+
+transmittance = val_y_t' * exp(1i*k0*n1*y0) * exp(1i*k0*n1*());
+
+distance = 2 * y0;
 
 ref_index = n2;
 
@@ -402,7 +408,7 @@ wavelength = lambda;
 
 %% Writing to file
 
-save('Bulk_data.mat','wavelength','ref_index','distance','reflectance','transmittance');
+save('Struct_data.mat','wavelength','ref_index','distance','reflectance','transmittance');
 
 %{
 

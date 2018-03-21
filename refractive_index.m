@@ -34,7 +34,9 @@ for h=1:length(wavelength)
      t = T(h);
 
     % Define the function you want to find zeros for. 
-    f = (((exp(2*a) - 1) + sqrt( (1-exp(2*a)).^2 + 4*(r^2)*exp(2*a) ))./(2*r*exp(2*a))) - sqrt(( exp(a) - t )./( exp(a) - t*exp(2*a) ));
+%     f = (((exp(2*a) - 1) + sqrt( (1-exp(2*a)).^2 + 4*(r^2)*exp(2*a) ))./(2*r*exp(2*a))) - sqrt(( exp(a) - t )./( exp(a) - t*exp(2*a) ));
+	r12 = (n - n1)./(n + n1);
+	f = r - (r12 .* (1 - exp(2i.*k0*n*d)))./(1 - r12.^2 .* exp(2i*k0*n*d));
     
     % Phase_plot is only used to to get a view of the phase of f in the
     % comple plane nr + ni. This is not needed for the script to find the
