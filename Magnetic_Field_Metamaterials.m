@@ -11,13 +11,15 @@ if exist('disppct.m','file') == 2 && exist('dispstat.m','file') == 2
 
 end
 
-var_array = linspace(0.5,3,6);
+var_object = 'hmax = linspace(0.5,3,6)';
 
-if exist('var_array','var')
+if exist('var_object','var')
 	
-	var_string = 'hmax = var_array(k)';
+	var_string = [extractBefore(var_object,'=') , '= var_array(k);'];
 	
-	var_len = cell2mat(extractAfter(extractBetween(var_array,',',')'),','));
+	var_array = eval(extractAfter(var_object,'='));
+	
+	var_len = length(var_array);
 	
 else
 	
@@ -41,6 +43,9 @@ for k = 1:length(var_len)
 
 	lambda = 700;
 	
+	r_i = load('Gold_refractive_index_file_J_C.m');
+	% r_i = load('Silver_refractive_index_file_J_C.m');
+	
 	% Determines maximum size of elements. Therefore larger values of hmax
 	% creates fewer elements. 
 	hmax = 2 * pi * 10 / 25;
@@ -56,16 +61,16 @@ for k = 1:length(var_len)
 	ul_spacing = 1400;
 	area_width = 30;
 	
-	if exist('var_string','var')
-		
-		eval(var_string)
-		
-	end
+	hmax = var_array(k);
+	
+% 	if exist('var_string','var')
+% 		
+% 		eval(var_string)
+% 		
+% 	end
 
 	% Minor calculations
 	
-	r_i = load('Gold_refractive_index_file_J_C.m');
-	% r_i = load('Silver_refractive_index_file_J_C.m');
 	n1 = 1;
 	n2 = interp1(r_i(:,1),r_i(:,2)+i*r_i(:,3),lambda);
 	di_const1 = n1^2;
@@ -124,23 +129,14 @@ for k = 1:length(var_len)
 	% gold_rect = [3 , 4 , area_width/2 , -area_width/2 , -area_width/2 , area_width/2 , area_height/2 , area_height/2 , -area_height/2 , -area_height/2];
 	% ns = char(ns,'rect_g');
 
-	%%{
 	% Cylinders
-
-	% geom = zeros(length(rect),n_cyl);
 
 	for i = 1:n_cyl
 
 		a.create_csg('circle',cent_cyl(:,i),r_cyl);
 
 	end
-
-	% geom = [rect',geom];
-	%%}
-
-	% ns = ns';
-
-	% geom = [rect',gold_rect'];
+	
 
 	%% Create Model, Geometry & Mesh
 
@@ -184,9 +180,8 @@ for k = 1:length(var_len)
 	for i = 1:n_tri
 
 		zone = t(end,i);
-	if zone == 1 || zone == 2
-
-		if zone == 2
+		
+		if zone == 2 %|| zone == 1
 
 			diel_const = di_const1;
 
@@ -250,7 +245,7 @@ for k = 1:length(var_len)
 
 				y_val = point_vec_ud(2,find(ind_same_yval,1));
 
-				H0 = exp(-1i * k0 * diel_const * y_val);
+				H0 = exp(-1i * k0 * sqrt(diel_const) * y_val);
 
 				bk = 1i * k0 * diel_const * H0 * edge_length;
 
@@ -406,21 +401,21 @@ ref_index = n2;
 
 	%% Calculating transmittance and reflectance etc.
 
-val_y_t = evaluate(int_F,[0 ; -tot_height/2]);
+	val_y_t = evaluate(int_F,[0 ; -tot_height/2]);
 
-val_y_r = evaluate(int_F,[0 ; tot_height/2]);
+	val_y_r = evaluate(int_F,[0 ; tot_height/2]);
 
-y0 = area_height/2;
+	y0 = area_height/2;
 
-H0 = exp(-1i*k0*n1*tot_height/2);
+	H0 = exp(-1i*k0*n1*tot_height/2);
 
-reflectance = (val_y_r - H0) * exp(2i*k0*n1*y0) * exp(-1i*k0*n1*tot_height/2);
+	reflectance = (val_y_r - H0) * exp(2i*k0*n1*y0) * exp(-1i*k0*n1*tot_height/2);
 
-transmittance = val_y_t * exp(1i*k0*n1*y0) * exp(1i*k0*n1*(tot_height/2 + y0));
+	transmittance = val_y_t * exp(1i*k0*n1*y0) * exp(1i*k0*n1*(tot_height/2 + y0));
 
-distance = 2 * y0;
+	distance = 2 * y0;
 
-ref_index = n2;
+	ref_index = n2;
 
 	wavelength(k) = lambda;
 	
