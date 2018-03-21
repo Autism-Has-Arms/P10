@@ -17,8 +17,8 @@ for h=1:length(wavelength)
     k_0 = 2*pi/lambda;
     
     % Defines the grid for which the function is calculated.
-    p = 3000;
-    q = 3000;
+    p = 2000;
+    q = 2000;
     nr = linspace(0.1,5,p);
     ni = linspace(0.1,5,q);
     
@@ -81,7 +81,7 @@ for h=1:length(wavelength)
             %the singularity.
             counter2 = counter2 + 1;
             counter2
-            nr(l) + i*ni(k)
+            nr(l) + 1i*ni(k)
             
             
             % f of n is printed to show that the point which has been found
