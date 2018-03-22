@@ -11,7 +11,7 @@ if exist('disppct.m','file') == 2 && exist('dispstat.m','file') == 2
 
 end
 
-var_object = 'hmax = linspace(0.5,3,20)';
+var_object = 'hmax = linspace(1,3,20)';
 
 if exist('var_object','var')
 	
