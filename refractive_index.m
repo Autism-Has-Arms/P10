@@ -14,7 +14,7 @@ for h=1:length(wavelength)
     d = distance(h);
 %     d = 100;
     lambda = wavelength(h);
-    k_0 = 2*pi/lambda;
+    k0 = 2*pi/lambda;
     
     % Defines the grid for which the function is calculated.
     p = 2000;
@@ -26,7 +26,7 @@ for h=1:length(wavelength)
     % f is calculated.
     n = nr + 1i*ni.';
     
-    a = 1i*k_0*d*n;
+    a = 1i*k0*d*n;
     
     % R and T are vectors containing the reflectivity and transmitivity for
     % different measurements.
@@ -35,6 +35,7 @@ for h=1:length(wavelength)
 
     % Define the function you want to find zeros for. 
 %     f = (((exp(2*a) - 1) + sqrt( (1-exp(2*a)).^2 + 4*(r^2)*exp(2*a) ))./(2*r*exp(2*a))) - sqrt(( exp(a) - t )./( exp(a) - t*exp(2*a) ));
+    n1 = 1;
 	r12 = (n - n1)./(n + n1);
 	f = r - (r12 .* (1 - exp(2i.*k0*n*d)))./(1 - r12.^2 .* exp(2i*k0*n*d));
     
@@ -81,20 +82,18 @@ for h=1:length(wavelength)
             %nr(l) and ni(k) gives the real and imaginary value for n at
             %the point which is the first corner of the trianle containing
             %the singularity.
-            counter2 = counter2 + 1;
-            counter2
-            nr(l) + 1i*ni(k)
-            
+
             
             % f of n is printed to show that the point which has been found
             % is indeed a value for which f is zero. f(k,l) should
             % therefore be a very low value.
-            f(k,l)
-%             f(k,l+1)
-%             f(k+1,l)
-%             f(k+1,l+1)
+%             f(k,l)
             % Once a point has been found is is added to a list.
-            r_index(h,1) = r_index(h,1) + nr(l) + 1i*ni(k);
+            nr(l) + 1i*ni(k)
+            if r_index(h) ~= 0
+                error('Too many zero-points found')
+            end
+            r_index(h) = nr(l) + 1i*ni(k);
             end
             
             % Gives a matrix containing the phase of f for each nr + ni
@@ -105,9 +104,9 @@ for h=1:length(wavelength)
     end
 end
 
-surf(nr,ni,phase_plot)
-shading interp
-view(2)
+% surf(nr,ni,phase_plot)
+% shading interp
+% view(2)
 % calculated the phase for a given complex number. Note that the phase goes
 % from -pi/2 to 3pi/2. For a complex number = 0, the phase is undefined,
 % and the functions returns an error.
