@@ -8,7 +8,7 @@ load('Struct_data.mat');
 R = reflectance;
 T = transmittance;
 
-r_index = zeros(length(wavelength),1);
+r_index = zeros(length(wavelength),2);
 
 for h=1:length(wavelength)
     d = distance(h);
@@ -19,8 +19,8 @@ for h=1:length(wavelength)
     % Defines the grid for which the function is calculated.
     p = 2000;
     q = 2000;
-    nr = linspace(0.1,5,p);
-    ni = linspace(0.1,5,q);
+    nr = linspace(0.001,5,p);
+    ni = linspace(0.001,5,q);
     
     % n is the matrix contaning the points in the complex plane for which
     % f is calculated.
@@ -89,11 +89,15 @@ for h=1:length(wavelength)
             % therefore be a very low value.
 %             f(k,l)
             % Once a point has been found is is added to a list.
-            nr(l) + 1i*ni(k)
+            n_cal = nr(l) + 1i*ni(k)
             if r_index(h) ~= 0
                 error('Too many zero-points found')
             end
-            r_index(h) = nr(l) + 1i*ni(k);
+            r12_cal = (n_cal-n1)/(n_cal + n1);
+            trans = ((1-r12_cal^2)*exp(1i*k0*d*n_cal))/(1 - r12_cal^2*exp(2i*k0*d*n_cal));
+            accuracy = abs(trans - t)/abs(t);
+            r_index(h,1) = n_cal;
+            r_index(h,2) = accuracy;
             end
             
             % Gives a matrix containing the phase of f for each nr + ni
