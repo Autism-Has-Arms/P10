@@ -11,13 +11,13 @@ if exist('disppct.m','file') == 2 && exist('dispstat.m','file') == 2
 
 end
 
-var_object = 'hmax = linspace(0.5,3,6)';
+var_object = 'hmax = linspace(0.5,3,20)';
 
 if exist('var_object','var')
 	
-	var_string = [extractBefore(var_object,'=') , '= var_array(k);'];
+	var_string = [extractBefore(var_object,' = ') , ' = var_array(k);'];
 	
-	var_array = eval(extractAfter(var_object,'='));
+	var_array = eval(extractAfter(var_object,' = '));
 	
 	var_len = length(var_array);
 	
@@ -37,7 +37,11 @@ ref_index = zeros(1,length(var_len));
 
 wavelength = zeros(1,length(var_len));
 
-for k = 1:length(var_len)
+cyl_amount = zeros(1,length(var_len));
+
+cyl_radius = zeros(1,length(var_len));
+
+for k = 1:var_len
 
 	%% Parameters
 
@@ -61,13 +65,13 @@ for k = 1:length(var_len)
 	ul_spacing = 1400;
 	area_width = 30;
 	
-	hmax = var_array(k);
+% 	hmax = var_array(k);
 	
-% 	if exist('var_string','var')
-% 		
-% 		eval(var_string)
-% 		
-% 	end
+	if exist('var_string','var')
+		
+		eval(var_string)
+		
+	end
 
 	% Minor calculations
 	
@@ -266,7 +270,7 @@ for k = 1:length(var_len)
 
 		if exist('disppct.m','file') == 2 && exist('dispstat.m','file') == 2
 
-			pct = disppct(i,n_tri,pct,2*k-1);
+			pct = disppct(i,n_tri,pct,2*k-1,2*var_len);
 
 		else
 
@@ -359,7 +363,7 @@ ref_index = n2;
 
 		if exist('disppct.m','file') == 2 && exist('dispstat.m','file') == 2
 
-			pct = disppct(i,n_tri,pct,2*k);
+			pct = disppct(i,n_tri,pct,2*k,2*var_len);
 
 		else
 
@@ -409,21 +413,28 @@ ref_index = n2;
 
 	H0 = exp(-1i*k0*n1*tot_height/2);
 
-	reflectance = (val_y_r - H0) * exp(2i*k0*n1*y0) * exp(-1i*k0*n1*tot_height/2);
+	reflectance(k) = (val_y_r - H0) * exp(2i*k0*n1*y0) * exp(-1i*k0*n1*tot_height/2);
 
-	transmittance = val_y_t * exp(1i*k0*n1*y0) * exp(1i*k0*n1*(tot_height/2 + y0));
+	transmittance(k) = val_y_t * exp(1i*k0*n1*y0) * exp(1i*k0*n1*(tot_height/2 + y0));
 
-	distance = 2 * y0;
+	distance(k) = 2 * y0;
 
-	ref_index = n2;
+	ref_index(k) = n2;
 
 	wavelength(k) = lambda;
+	
+	cyl_amount(k) = n_cyl;
+	
+	cyl_radius(k) = r_cyl;
 	
 end
 
 %% Writing to file
 
-save('Var=hmax,[0.5,3],n=6.mat','wavelength','ref_index','distance','reflectance','transmittance','var_array');
+save(['Var=' , extractBefore(var_object,' = ') , ',[' , num2str(min(var_array)) , ...
+	',' , num2str(max(var_array)) , '],n=' , num2str(var_len) , '.mat'],...
+	'wavelength','ref_index','distance','reflectance','transmittance','var_array',...
+	'cyl_period','area_width','cyl_amount','cyl_radius');
 
 %{
 
@@ -434,6 +445,7 @@ text_header = cell2mat(comma_header);
 csvv = [lambda,n2,2*(max(cyl_cent_y) + cyl_period/2),refl,val_y_t];
 %}
 
+dispstat('Finished.','keepprev','timestamp');
 
 %% Indices of Triangles on Edges
 
