@@ -11,7 +11,7 @@ if exist('disppct.m','file') == 2 && exist('dispstat.m','file') == 2
 
 end
 
-var_object = 'hmax = linspace(1,3,20)';
+var_object = 'hmax = 3';%linspace(1,3,20)';
 
 if exist('var_object','var')
 	
@@ -40,6 +40,8 @@ wavelength = zeros(1,length(var_len));
 cyl_amount = zeros(1,length(var_len));
 
 cyl_radius = zeros(1,length(var_len));
+
+cyl_periods = zeros(1,length(var_len));
 
 for k = 1:var_len
 
@@ -76,7 +78,7 @@ for k = 1:var_len
 	% Minor calculations
 	
 	n1 = 1;
-	n2 = interp1(r_i(:,1),r_i(:,2)+i*r_i(:,3),lambda);
+	n2 = interp1(r_i(:,1),r_i(:,2)+r_i(:,3)*1i,lambda);
 	di_const1 = n1^2;
 	di_const2 = n2^2;
 
@@ -427,6 +429,8 @@ ref_index = n2;
 	
 	cyl_radius(k) = r_cyl;
 	
+	cyl_periods(k) = cyl_period;
+	
 end
 
 %% Writing to file
@@ -434,7 +438,7 @@ end
 save(['Var=' , extractBefore(var_object,' = ') , ',[' , num2str(min(var_array)) , ...
 	',' , num2str(max(var_array)) , '],n=' , num2str(var_len) , '.mat'],...
 	'wavelength','ref_index','distance','reflectance','transmittance','var_array',...
-	'cyl_period','area_width','cyl_amount','cyl_radius');
+	'cyl_periods','area_width','cyl_amount','cyl_radius');
 
 %{
 
@@ -508,10 +512,4 @@ function edge_index = edge_ind(mesh,x_or_y,num)
 	plot(xv,yv,'r*')
 	%}
 	
-end
-
-function enable_var(a,b)
-
-	
-
 end
