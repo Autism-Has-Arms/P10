@@ -1,7 +1,11 @@
 % clear all
 % cac = data();
 
-load('Struct_data.mat');
+load_string = 'Struct_data.mat';
+
+
+
+load(load_string);
 % wavelength = cac{1};
 % R = cac{2};
 % T = cac{3};
@@ -153,6 +157,10 @@ for h=1:length(wavelength)
 	r_index(h,2) = accuracy;
 	
 end
+
+temp_ws = load(load_string);
+temp_ws.r_index = r_index;
+save([extractBefore(load_string,'.mat') , ' (Refractive_Index).mat'],'-struct','temp_ws')
 
 % surf(nr,ni,phase_plot)
 % shading interp
