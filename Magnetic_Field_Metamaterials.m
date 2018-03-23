@@ -345,21 +345,6 @@ for k = 1:var_len
 			% (The points on the opposite edge which are closest in height
 			% to the selected ones on the current edge).
 
-val_y_t = evaluate(int_F,[0 ; -tot_height/2]);
-
-val_y_r = evaluate(int_F,[0 ; tot_height/2]);
-
-y0 = area_height/2;
-
-H0 = exp(-1i*k0*n1*tot_height/2);
-
-reflectance = (val_y_r - H0) * exp(2i*k0*n1*y0) * exp(-1i*k0*n1*tot_height/2);
-
-transmittance = val_y_t * exp(1i*k0*n1*y0) * exp(1i*k0*n1*(tot_height/2 - y0));
-
-distance = 2 * y0;
-
-ref_index = n2;
 
 		end
 
