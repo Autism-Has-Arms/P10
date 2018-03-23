@@ -11,7 +11,7 @@ if exist('disppct.m','file') == 2 && exist('dispstat.m','file') == 2
 
 end
 
-var_object = 'hmax = linspace(3,15,200)';
+var_object = 'n_cyl = linspace(0,15,16)';
 
 if exist('var_object','var')
 	
@@ -54,7 +54,7 @@ for k = 1:var_len
 	
 	% Determines maximum size of elements. Therefore larger values of hmax
 	% creates fewer elements. 
-	hmax = 2 * pi * 10 / 25;
+	hmax = 1.6;
 	
 	% Cylinder specifics
 
@@ -90,93 +90,106 @@ for k = 1:var_len
 	k0 = 2*pi/lambda;
 
 
-	%% Centres of cylinders.
+	if length(lambda) == 1 || k == 1
+	
+		%% Centres of cylinders.
 
-	if mod(n_cyl,2) == 0				% Checks if n_cyl is an even number.
+		if n_cyl == 0
 
-		cyl_cent_x = 0 * ones(1,n_cyl);
-		cyl_cent_y = zeros(1,n_cyl);
+			tot_height = ul_spacing;
 
-		for i = 1:n_cyl/2
+		else
 
-			cyl_cent_y(2*i-1) = i * cyl_period - cyl_period/2;
-			cyl_cent_y(2*i) = - i * cyl_period + cyl_period/2;
+			if mod(n_cyl,2) == 0				% Checks if n_cyl is an even number.
+
+				cyl_cent_x = 0 * ones(1,n_cyl);
+				cyl_cent_y = zeros(1,n_cyl);
+
+				for i = 1:n_cyl/2
+
+					cyl_cent_y(2*i-1) = i * cyl_period - cyl_period/2;
+					cyl_cent_y(2*i) = - i * cyl_period + cyl_period/2;
+
+				end
+
+			else
+
+				cyl_cent_x = 0 * ones(1,n_cyl);
+				cyl_cent_y = zeros(1,n_cyl);
+
+				for i = 1:(n_cyl-1)/2
+					cyl_cent_y(2*i) = i * cyl_period;
+					cyl_cent_y((2*i)+1) = - i * cyl_period;
+				end
+
+			end
+
+			cent_cyl = [cyl_cent_x ; cyl_cent_y];
+
+			area_height = 2*(max(cyl_cent_y) + cyl_period/2) + 100;
+
+			tot_height = ul_spacing + area_height;
 
 		end
 
-	else
 
-		cyl_cent_x = 0 * ones(1,n_cyl);
-		cyl_cent_y = zeros(1,n_cyl);
+		%% Creating CSG
 
-		for i = 1:(n_cyl-1)/2
-			cyl_cent_y(2*i) = i * cyl_period;
-			cyl_cent_y((2*i)+1) = - i * cyl_period;
+		a = csg;
+
+		% Rectangle
+
+		a.create_csg('rectangle',area_width,tot_height);
+
+		% Gold rectangle
+
+		% gold_rect = [3 , 4 , area_width/2 , -area_width/2 , -area_width/2 , area_width/2 , area_height/2 , area_height/2 , -area_height/2 , -area_height/2];
+		% ns = char(ns,'rect_g');
+
+		% Cylinders
+
+		for i = 1:n_cyl
+
+			a.create_csg('circle',cent_cyl(:,i),r_cyl);
+
 		end
 
-	end
 
-	cent_cyl = [cyl_cent_x ; cyl_cent_y];
+		%% Create Model, Geometry & Mesh
 
-	area_height = 2*(max(cyl_cent_y) + cyl_period/2) + 100;
-	tot_height = ul_spacing + area_height;
+		[dl,~] = decsg(a.geom,a.sf,a.ns);
 
+		% pdegplot(dl,'EdgeLabels','on','FaceLabels','on')
+		% axis equal
 
-	%% Creating CSG
+		model = createpde(1);
 
-	a = csg;
+		geometryFromEdges(model,dl);
 
-	% Rectangle
+		mesh = generateMesh(model,'Hmax',hmax,'Hgrad',1.05,'GeometricOrder','linear');
 
-	a.create_csg('rectangle',area_width,tot_height);
+		% pdeplot(model);
 
-	% Gold rectangle
+		%% Triangle Manipulation
 
-	% gold_rect = [3 , 4 , area_width/2 , -area_width/2 , -area_width/2 , area_width/2 , area_height/2 , area_height/2 , -area_height/2 , -area_height/2];
-	% ns = char(ns,'rect_g');
+		[p,e,t] = meshToPet(mesh);
 
-	% Cylinders
+		n_tri = length(mesh.Elements(1,:));
 
-	for i = 1:n_cyl
+		B = [2 1 1 ; 1 2 1 ; 1 1 2]/12;
 
-		a.create_csg('circle',cent_cyl(:,i),r_cyl);
+		ind_top_edge = edge_ind(mesh,'y',tot_height/2);
 
+		ind_bot_edge = edge_ind(mesh,'y',-tot_height/2);
+
+		ind_right_edge = edge_ind(mesh,'x',area_width/2);
+
+		ind_left_edge = edge_ind(mesh,'x',-area_width/2);
+		
 	end
 	
-
-	%% Create Model, Geometry & Mesh
-
-	[dl,~] = decsg(a.geom,a.sf,a.ns);
-
-	% pdegplot(dl,'EdgeLabels','on','FaceLabels','on')
-	% axis equal
-
-	model = createpde(1);
-
-	geometryFromEdges(model,dl);
-
-	mesh = generateMesh(model,'Hmax',hmax,'Hgrad',1.05,'GeometricOrder','linear');
-
-	% pdeplot(model);
-
-	%% Triangle Manipulation
-
-	[p,e,t] = meshToPet(mesh);
-
-	n_tri = length(mesh.Elements(1,:));
-
-	B = [2 1 1 ; 1 2 1 ; 1 1 2]/12;
-
 	M = sparse(size(mesh.Nodes,2),size(mesh.Nodes,2));
-
-	ind_top_edge = edge_ind(mesh,'y',tot_height/2);
-
-	ind_bot_edge = edge_ind(mesh,'y',-tot_height/2);
-
-	ind_right_edge = edge_ind(mesh,'x',area_width/2);
-
-	ind_left_edge = edge_ind(mesh,'x',-area_width/2);
-
+	
 	ind_saved = [];
 
 	bv = zeros(length(p),1);

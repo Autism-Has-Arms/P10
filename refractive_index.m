@@ -11,6 +11,10 @@ T = transmittance;
 r_index = zeros(length(wavelength),2);
 
 for h=1:length(wavelength)
+	
+	nr_int = [];
+	ni_int = [];
+	
     d = distance(h);
 %     d = 100;
     lambda = wavelength(h);
@@ -42,8 +46,9 @@ for h=1:length(wavelength)
     % Phase_plot is only used to to get a view of the phase of f in the
     % comple plane nr + ni. This is not needed for the script to find the
     % zero-points.
-    counter2 = 0;
+    
     phase_plot = zeros(q,p);
+	
     for l=1:p-1
         for k=1:q-1
 
@@ -75,37 +80,78 @@ for h=1:length(wavelength)
             % If only one edge has a large change in phase, the rectangle
             % contains a singularity.
             if counter == 1 %&& abs(f(k,l)) < 0.3 && abs(nr(l)) > 0.1
-%             h
-%             k
-%             l
-            
-            %nr(l) and ni(k) gives the real and imaginary value for n at
-            %the point which is the first corner of the trianle containing
-            %the singularity.
 
-            
-            % f of n is printed to show that the point which has been found
-            % is indeed a value for which f is zero. f(k,l) should
-            % therefore be a very low value.
-%             f(k,l)
-            % Once a point has been found is is added to a list.
-            n_cal = nr(l) + 1i*ni(k)
-            if r_index(h) ~= 0
-                error('Too many zero-points found')
-            end
-            r12_cal = (n_cal-n1)/(n_cal + n1);
-            trans = ((1-r12_cal^2)*exp(1i*k0*d*n_cal))/(1 - r12_cal^2*exp(2i*k0*d*n_cal));
-            accuracy = abs(trans - t)/abs(t);
-            r_index(h,1) = n_cal;
-            r_index(h,2) = accuracy;
+				nr_int = linspace(l,l+1,p);
+				ni_int = linspace(k,k+1,q);
+				
+				for loop_nr = 1:length(nr_int)-1
+					
+					for loop_ni = 1:length(ni_int)-1
+						
+						counter2 = 0;
+						
+						u1 = abs( phase(f(loop_ni,loop_nr)) - phase(f(loop_ni+1,loop_nr)) );
+						u2 = abs( phase(f(loop_ni,loop_nr)) - phase(f(loop_ni,loop_nr+1)) );
+						u3 = abs( phase(f(loop_ni+1,loop_nr)) - phase(f(loop_ni+1,loop_nr+1)) );
+						u4 = abs( phase(f(loop_ni,loop_nr+1)) - phase(f(loop_ni+1,loop_nr+1)) );
+						
+						if u1 > 1.0*pi
+							counter2 = counter2+1;
+						end
+						if u2 > 1.0*pi
+							counter2 = counter2+1;
+						end
+						if u3 > 1.0*pi
+							counter2 = counter2+1;
+						end
+						if u4 > 1.0*pi
+							counter2 = counter2+1;
+						end
+						
+						if counter2 == 1
+
+							%nr(l) and ni(k) gives the real and imaginary value for n at
+							%the point which is the first corner of the trianle containing
+							%the singularity.
+
+
+							% f of n is printed to show that the point which has been found
+							% is indeed a value for which f is zero. f(k,l) should
+							% therefore be a very low value.
+							% f(k,l)
+							% Once a point has been found is is added to a list.
+
+							n_cal = nr(loop_nr) + 1i*ni(loop_ni)
+							
+						end
+						
+					end
+					
+				end
+				
+				if size(nr_int,1) > 1 %r_index(h) ~= 0
+				
+					error('Too many zero-points found')
+				
+				end
+				
             end
             
             % Gives a matrix containing the phase of f for each nr + ni
             % value. Used for a phase_plot if this is desired, but not used
             % for finding the zero-points.
             phase_plot(k,l) = phase(f(k,l));
-        end
-    end
+			
+		end
+		
+	end
+	
+	r12_cal = (n_cal-n1)/(n_cal + n1);
+	trans = ((1-r12_cal^2)*exp(1i*k0*d*n_cal))/(1 - r12_cal^2*exp(2i*k0*d*n_cal));
+	accuracy = abs(trans - t)/abs(t);
+	r_index(h,1) = n_cal;
+	r_index(h,2) = accuracy;
+	
 end
 
 % surf(nr,ni,phase_plot)
