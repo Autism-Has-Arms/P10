@@ -398,7 +398,7 @@ H0 = exp(-1i*k0*n1*tot_height/2);
 
 reflectance = (val_y_r - H0) * exp(2i*k0*n1*y0) * exp(-1i*k0*n1*tot_height/2);
 
-transmittance = val_y_t * exp(1i*k0*n1*y0) * exp(1i*k0*n1*(tot_height/2 + y0));
+transmittance = val_y_t * exp(1i*k0*n1*y0) * exp(1i*k0*n1*(tot_height/2 - y0));
 
 distance = 2 * y0;
 
