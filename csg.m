@@ -23,7 +23,16 @@ classdef csg < handle
 					
 					type_char = 'rect';
 					
-					temp_geom = [3 , 4 , a/2 , -a/2 , -a/2 , a/2 , b/2 , b/2 , -b/2 , -b/2];
+					if length(b) == 1
+					
+						temp_geom = [3 , 4 , a/2 , -a/2 , -a/2 , a/2 , b/2 , b/2 , -b/2 , -b/2];
+						
+					else
+						
+						temp_geom = [3 , 4 , a/2 , -a/2 , -a/2 , a/2 , (b(1)/2)+b(2) , (b(1)/2)+b(2) , (-b(1)/2)+b(2) , (-b(1)/2)+b(2)];
+						
+					end
+					
 					obj.geom = [obj.geom' ; temp_geom]';
 					
 				case 'circle'
@@ -42,7 +51,7 @@ classdef csg < handle
 				
 			else
 				
-				temp_str = type_char;%,num2str( length( obj.ns(1,:) ))];
+				temp_str = [type_char,num2str( length( obj.ns(1,:) ))];
 				obj.ns = char(obj.ns',temp_str)';
 				obj.sf = [obj.sf,'+',temp_str];
 				

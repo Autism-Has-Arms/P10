@@ -11,7 +11,7 @@ if exist('disppct.m','file') == 2 && exist('dispstat.m','file') == 2
 
 end
 
-var_object = 'n_cyl = linspace(0,15,16)';
+% var_object = 'n_cyl = linspace(0,15,16)';
 
 if exist('var_object','var')
 	
@@ -149,8 +149,10 @@ for k = 1:var_len
 		% Cylinders
 
 		for i = 1:n_cyl
+			
+			a.create_csg('rectangle',area_width,[r_cyl , cent_cyl(2,i)]);
 
-			a.create_csg('circle',cent_cyl(:,i),r_cyl);
+% 			a.create_csg('circle',cent_cyl(:,i),r_cyl);
 
 		end
 
@@ -159,8 +161,8 @@ for k = 1:var_len
 
 		[dl,~] = decsg(a.geom,a.sf,a.ns);
 
-		% pdegplot(dl,'EdgeLabels','on','FaceLabels','on')
-		% axis equal
+		pdegplot(dl,'EdgeLabels','on','FaceLabels','on')
+		axis equal
 
 		model = createpde(1);
 
@@ -268,7 +270,7 @@ for k = 1:var_len
 
 				bk = 1i * k0 * diel_const * H0 * edge_length;
 
-				bv(t(ind_same_yval,i)) = bv(t(ind_same_yval,i)) + bk; %<-- Husk vinkelafhængig.
+				bv(t(ind_same_yval,i)) = bv(t(ind_same_yval,i)) + bk; %<-- Husk vinkelafh??ngig.
 
 			end
 
