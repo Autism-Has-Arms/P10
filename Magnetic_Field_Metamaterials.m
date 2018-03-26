@@ -58,7 +58,7 @@ for k = 1:var_len
 	
 	% Cylinder specifics
 
-	n_cyl = 10;
+	rows_cyl = 5;
 	r_cyl = 10;
 	cyl_period = 30;
 	
@@ -81,6 +81,8 @@ for k = 1:var_len
 	n2 = interp1(r_i(:,1),r_i(:,2)+r_i(:,3)*1i,lambda);
 	di_const1 = n1^2;
 	di_const2 = n2^2;
+	
+	hex_struct = 1;
 
 	% Test of script duartion:
 	% Halving hmax from 2pi*10/10 to 2pi*10/20
@@ -88,24 +90,25 @@ for k = 1:var_len
 	% 2pi*10/20 to 2pi*10/40 increased the duration 10 times.
 
 	k0 = 2*pi/lambda;
+	
+	insert = @(num, arr, pos) cat(2,  arr(1:pos-1), num, arr(pos:end));
 
 
 	if length(lambda) == 1 || k == 1
 	
 		%% Centres of cylinders.
 
-		if n_cyl == 0
+		if rows_cyl == 0
 
 			tot_height = ul_spacing;
 
 		else
 
-			if mod(n_cyl,2) == 0				% Checks if n_cyl is an even number.
+			if mod(rows_cyl,2) == 0				% Checks if n_cyl is an even number.
 
-				cyl_cent_x = 0 * ones(1,n_cyl);
-				cyl_cent_y = zeros(1,n_cyl);
+				cyl_cent_y = zeros(1,rows_cyl);
 
-				for i = 1:n_cyl/2
+				for i = 1:rows_cyl/2
 
 					cyl_cent_y(2*i-1) = i * cyl_period - cyl_period/2;
 					cyl_cent_y(2*i) = - i * cyl_period + cyl_period/2;
@@ -113,20 +116,77 @@ for k = 1:var_len
 				end
 
 			else
+				
+				cyl_cent_y = zeros(1,rows_cyl);
 
-				cyl_cent_x = 0 * ones(1,n_cyl);
-				cyl_cent_y = zeros(1,n_cyl);
-
-				for i = 1:(n_cyl-1)/2
+				for i = 1:(rows_cyl-1)/2
+					
 					cyl_cent_y(2*i) = i * cyl_period;
 					cyl_cent_y((2*i)+1) = - i * cyl_period;
+					
 				end
 
+			end
+			
+			if hex_struct == 0
+			
+				cyl_cent_x = zeros(1,rows_cyl);
+				
+			else
+				
+				switch mod(rows_cyl,4)
+					
+					case 0
+						
+						tot_cyl = rows_cyl + 2*floor(rows_cyl/4);
+					
+					case 1
+						
+						tot_cyl = rows_cyl + 2*floor(rows_cyl/4);
+						
+					case 2
+						
+						tot_cyl = rows_cyl + 2*floor(rows_cyl/4) + 1;
+						
+					case 3
+						
+						tot_cyl = rows_cyl + 2*floor(rows_cyl/4) + 2;
+						
+				end
+			
+				cyl_cent_x = zeros(1,tot_cyl);
+
+				count = 1;
+
+				for i = 1:rows_cyl
+
+					if any(mod(i,4) == [0 , 1])
+
+						cyl_cent_x(count) = 0;
+
+						count = count+1;
+
+					elseif any(mod(i,4) == [2 , 3])
+
+						cyl_cent_x([count,count+1]) = [area_width/2 , -area_width/2];
+
+						cyl_cent_y = insert(cyl_cent_y(count),cyl_cent_y,count+1);
+
+						count = count+2;
+
+					else
+
+						error("Mod stuff doesn't work")
+
+					end
+
+				end
+				
 			end
 
 			cent_cyl = [cyl_cent_x ; cyl_cent_y];
 
-			area_height = 2*(max(cyl_cent_y) + cyl_period/2) + 100;
+			area_height = 2*(max(cyl_cent_y) + cyl_period/2);
 
 			tot_height = ul_spacing + area_height;
 
@@ -148,25 +208,25 @@ for k = 1:var_len
 
 		% Cylinders
 
-		for i = 1:n_cyl
+		for i = 1:length(cent_cyl(1,:))
 			
-			a.create_csg('rectangle',area_width,[r_cyl , cent_cyl(2,i)]);
+% 			a.create_csg('rectangle',area_width,[r_cyl , cent_cyl(2,i)]);
 
-% 			a.create_csg('circle',cent_cyl(:,i),r_cyl);
+			a.create_csg('circle',cent_cyl(:,i),r_cyl);
 
 		end
 
 
 		%% Create Model, Geometry & Mesh
 
-		[dl,~] = decsg(a.geom,a.sf,a.ns);
+		[dl,bt] = decsg(a.geom,a.sf,a.ns);
 
 		pdegplot(dl,'EdgeLabels','on','FaceLabels','on')
 		axis equal
-
+asd
 		model = createpde(1);
 
-		geometryFromEdges(model,dl);
+		model.geometryFromEdges(dl);
 
 		mesh = generateMesh(model,'Hmax',hmax,'Hgrad',1.05,'GeometricOrder','linear');
 
@@ -425,7 +485,7 @@ for k = 1:var_len
 
 	wavelength(k) = lambda;
 	
-	cyl_amount(k) = n_cyl;
+	cyl_amount(k) = rows_cyl;
 	
 	cyl_radius(k) = r_cyl;
 	
