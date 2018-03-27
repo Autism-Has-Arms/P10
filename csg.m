@@ -6,7 +6,7 @@ classdef csg < handle
 		
 		geom
 		ns
-		sf
+		sf = 'rect'
 		
 	end
 	
@@ -53,7 +53,6 @@ classdef csg < handle
 				
 				temp_str = [type_char,num2str( length( obj.ns(1,:) ))];
 				obj.ns = char(obj.ns',temp_str)';
-				obj.sf = [obj.sf,'+',temp_str];
 				
 			end
 		

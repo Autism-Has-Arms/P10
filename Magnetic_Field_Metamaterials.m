@@ -58,14 +58,15 @@ for k = 1:var_len
 	
 	% Cylinder specifics
 
-	rows_cyl = 5;
-	r_cyl = 10;
+	rows_cyl = 20;
 	cyl_period = 30;
 	
 	% Area specifics
 
 	ul_spacing = 1400;
-	area_width = 30;
+	area_width = 2*cyl_period;
+	
+	r_cyl = 18;
 	
 % 	hmax = var_array(k);
 	
@@ -83,6 +84,16 @@ for k = 1:var_len
 	di_const2 = n2^2;
 	
 	hex_struct = 1;
+	
+	if hex_struct == 1 && r_cyl >= (cyl_period/sqrt(2))
+		
+		error(['Cylinder radius must not be above r = ' , num2str(cyl_period/sqrt(2)) , ' (hexagonal).'])
+		
+	elseif hex_struct == 0 && r_cyl >= (cyl_period/2)
+		
+		error(['Cylinder radius must not be above r = ' , num2str(cyl_period/2) , ' (line).'])
+		
+	end
 
 	% Test of script duartion:
 	% Halving hmax from 2pi*10/10 to 2pi*10/20
@@ -171,6 +182,8 @@ for k = 1:var_len
 						cyl_cent_x([count,count+1]) = [area_width/2 , -area_width/2];
 
 						cyl_cent_y = insert(cyl_cent_y(count),cyl_cent_y,count+1);
+						
+						str_form([count,count+1]) = 1;
 
 						count = count+2;
 
@@ -186,7 +199,7 @@ for k = 1:var_len
 
 			cent_cyl = [cyl_cent_x ; cyl_cent_y];
 
-			area_height = 2*(max(cyl_cent_y) + cyl_period/2);
+			area_height = 2*max(cyl_cent_y) + cyl_period;
 
 			tot_height = ul_spacing + area_height;
 
@@ -221,16 +234,16 @@ for k = 1:var_len
 
 		[dl,bt] = decsg(a.geom,a.sf,a.ns);
 
-		pdegplot(dl,'EdgeLabels','on','FaceLabels','on')
-		axis equal
-asd
+% 		pdegplot(dl,'EdgeLabels','on','FaceLabels','on')
+% 		axis equal
+		
 		model = createpde(1);
 
 		model.geometryFromEdges(dl);
 
 		mesh = generateMesh(model,'Hmax',hmax,'Hgrad',1.05,'GeometricOrder','linear');
 
-		% pdeplot(model);
+% 		pdeplot(model);
 
 		%% Triangle Manipulation
 
@@ -439,10 +452,10 @@ asd
 
 	Hv = M\bv;
 
-	% pdeplot(p,e,t,'xydata',abs(Hv))
-	% hold on
-	% pdegplot(dl)
-	% axis equal
+	pdeplot(p,e,t,'xydata',abs(Hv))
+	hold on
+	pdegplot(dl)
+	axis equal
 	% colormap gray 
 
 
@@ -495,10 +508,20 @@ end
 
 %% Writing to file
 
-save(['Var=' , extractBefore(var_object,' = ') , ',[' , num2str(min(var_array)) , ...
+if logical(exist('var_array','var'))
+
+	save(['Var=' , extractBefore(var_object,' = ') , ',[' , num2str(min(var_array)) , ...
 	',' , num2str(max(var_array)) , '],n=' , num2str(var_len) , '.mat'],...
 	'wavelength','ref_index','distance','reflectance','transmittance','var_array',...
 	'cyl_periods','area_width','cyl_amount','cyl_radius');
+
+else
+	
+	save(['Var=none,n=' , num2str(var_len) , '.mat'],...
+	'wavelength','ref_index','distance','reflectance','transmittance',...
+	'cyl_periods','area_width','cyl_amount','cyl_radius');
+
+end
 
 %{
 
@@ -535,17 +558,13 @@ function edge_index = edge_ind(mesh,x_or_y,num)
 	
 	[p,e,t] = meshToPet(mesh);
 	
-	% Get the index in edge array 'e' where the x/y value first appears.
-	
-	ind_val = find(ismember(round([p(x_or_y,e(1,:));p(x_or_y,e(2,:))]',5),[num;num]','rows')',1);
-	
 	% Get the corresponding edge ID for the given x/y value.
 	
-	edge_id = e(5,ind_val);
+	edge_id = unique(e(5,sum(reshape(p(x_or_y,e([1,2],:)),2,length(p(x_or_y,e([1,2],:)))/2) == num) == 2));
 	
 	% All the edges with the given edge ID.
 	
-	apt_edges = (e(5,:) == edge_id);
+	apt_edges = logical(sum(e(5,:) == edge_id',1));
 	
 	% Get the indices in 'p' of the 2 points which make up the edges.
 	
@@ -573,3 +592,4 @@ function edge_index = edge_ind(mesh,x_or_y,num)
 	%}
 	
 end
+
