@@ -58,7 +58,7 @@ for k = 1:var_len
 	
 	% Cylinder specifics
 
-	rows_cyl = 20;
+	rows_cyl = 3;
 	cyl_period = 30;
 	
 	% Area specifics
@@ -83,15 +83,17 @@ for k = 1:var_len
 	di_const1 = n1^2;
 	di_const2 = n2^2;
 	
-	hex_struct = 1;
+	
+	hex_struct = 1; % [0 = Line structuring], [1 = Hexagonal structuring].
+	
 	
 	if hex_struct == 1 && r_cyl >= (cyl_period/sqrt(2))
 		
-		error(['Cylinder radius must not be above r = ' , num2str(cyl_period/sqrt(2)) , ' (hexagonal).'])
+		error(['Overlapping cylinders.  Radius must be below r = ' , num2str(cyl_period/sqrt(2)) , ' (Structure: hexagonal).'])
 		
 	elseif hex_struct == 0 && r_cyl >= (cyl_period/2)
 		
-		error(['Cylinder radius must not be above r = ' , num2str(cyl_period/2) , ' (line).'])
+		error(['Overlapping cylinders. Radius must be below r = ' , num2str(cyl_period/2) , ' (Structure: line).'])
 		
 	end
 
@@ -234,8 +236,8 @@ for k = 1:var_len
 
 		[dl,bt] = decsg(a.geom,a.sf,a.ns);
 
-% 		pdegplot(dl,'EdgeLabels','on','FaceLabels','on')
-% 		axis equal
+		pdegplot(dl,'EdgeLabels','on','FaceLabels','on')
+		axis equal
 		
 		model = createpde(1);
 
@@ -263,6 +265,18 @@ for k = 1:var_len
 		
 	end
 	
+	%% Zone determination
+	
+	unique_zones = unique(dl(7,:));
+	
+	unique_zones = unique_zones(~unique_zones == 0);
+	
+	[~ , zone_majority_ind] = max(histc(dl(7,:),unique_zones));
+	
+	zone_rect = unique_zones(zone_majority_ind);
+	
+	%% Pre-calculation initialisations
+	
 	M = sparse(size(mesh.Nodes,2),size(mesh.Nodes,2));
 	
 	ind_saved = [];
@@ -275,7 +289,7 @@ for k = 1:var_len
 
 		zone = t(end,i);
 		
-		if zone == 2 %|| zone == 1
+		if zone == zone_rect %|| zone == 1
 
 			diel_const = di_const1;
 
