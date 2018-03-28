@@ -6,7 +6,7 @@ classdef csg < handle
 		
 		geom
 		ns
-		sf = 'rect'
+		sf
 		
 	end
 	

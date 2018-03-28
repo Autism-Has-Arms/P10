@@ -58,7 +58,7 @@ for k = 1:var_len
 	
 	% Cylinder specifics
 
-	rows_cyl = 3;
+	rows_cyl = 11;
 	cyl_period = 30;
 	
 	% Area specifics
@@ -66,7 +66,7 @@ for k = 1:var_len
 	ul_spacing = 1400;
 	area_width = 2*cyl_period;
 	
-	r_cyl = 18;
+	r_cyl = 20;
 	
 % 	hmax = var_array(k);
 	
@@ -84,16 +84,16 @@ for k = 1:var_len
 	di_const2 = n2^2;
 	
 	
-	hex_struct = 1; % [0 = Line structuring], [1 = Hexagonal structuring].
+	struct_shape = 'hexagonal'; % ['line','hexagonal'], [1 = Hexagonal structuring].
 	
 	
-	if hex_struct == 1 && r_cyl >= (cyl_period/sqrt(2))
+	if strcmp(struct_shape,'hexagonal') && r_cyl >= (cyl_period/sqrt(2))
 		
-		error(['Overlapping cylinders.  Radius must be below r = ' , num2str(cyl_period/sqrt(2)) , ' (Structure: hexagonal).'])
+		error(['Overlapping cylinders. Radius must be below r = ' , num2str(round(cyl_period/sqrt(2),2)) , '. (Hexagonal structure)'])
 		
-	elseif hex_struct == 0 && r_cyl >= (cyl_period/2)
+	elseif strcmp(struct_shape,'line') && r_cyl >= (cyl_period/2)
 		
-		error(['Overlapping cylinders. Radius must be below r = ' , num2str(cyl_period/2) , ' (Structure: line).'])
+		error(['Overlapping cylinders. Radius must be below r = ' , num2str(round(cyl_period/2,2)) , '. (Line structure)'])
 		
 	end
 
@@ -103,8 +103,6 @@ for k = 1:var_len
 	% 2pi*10/20 to 2pi*10/40 increased the duration 10 times.
 
 	k0 = 2*pi/lambda;
-	
-	insert = @(num, arr, pos) cat(2,  arr(1:pos-1), num, arr(pos:end));
 
 
 	if length(lambda) == 1 || k == 1
@@ -116,92 +114,10 @@ for k = 1:var_len
 			tot_height = ul_spacing;
 
 		else
-
-			if mod(rows_cyl,2) == 0				% Checks if n_cyl is an even number.
-
-				cyl_cent_y = zeros(1,rows_cyl);
-
-				for i = 1:rows_cyl/2
-
-					cyl_cent_y(2*i-1) = i * cyl_period - cyl_period/2;
-					cyl_cent_y(2*i) = - i * cyl_period + cyl_period/2;
-
-				end
-
-			else
-				
-				cyl_cent_y = zeros(1,rows_cyl);
-
-				for i = 1:(rows_cyl-1)/2
-					
-					cyl_cent_y(2*i) = i * cyl_period;
-					cyl_cent_y((2*i)+1) = - i * cyl_period;
-					
-				end
-
-			end
 			
-			if hex_struct == 0
-			
-				cyl_cent_x = zeros(1,rows_cyl);
-				
-			else
-				
-				switch mod(rows_cyl,4)
-					
-					case 0
-						
-						tot_cyl = rows_cyl + 2*floor(rows_cyl/4);
-					
-					case 1
-						
-						tot_cyl = rows_cyl + 2*floor(rows_cyl/4);
-						
-					case 2
-						
-						tot_cyl = rows_cyl + 2*floor(rows_cyl/4) + 1;
-						
-					case 3
-						
-						tot_cyl = rows_cyl + 2*floor(rows_cyl/4) + 2;
-						
-				end
-			
-				cyl_cent_x = zeros(1,tot_cyl);
+			obj_cent = cent_gen(rows_cyl,cyl_period,area_width,struct_shape);
 
-				count = 1;
-
-				for i = 1:rows_cyl
-
-					if any(mod(i,4) == [0 , 1])
-
-						cyl_cent_x(count) = 0;
-
-						count = count+1;
-
-					elseif any(mod(i,4) == [2 , 3])
-
-						cyl_cent_x([count,count+1]) = [area_width/2 , -area_width/2];
-
-						cyl_cent_y = insert(cyl_cent_y(count),cyl_cent_y,count+1);
-						
-						str_form([count,count+1]) = 1;
-
-						count = count+2;
-
-					else
-
-						error("Mod stuff doesn't work")
-
-					end
-
-				end
-				
-			end
-
-			cent_cyl = [cyl_cent_x ; cyl_cent_y];
-
-			area_height = 2*max(cyl_cent_y) + cyl_period;
+			area_height = 2*max(obj_cent.cent_y) + cyl_period;
 
 			tot_height = ul_spacing + area_height;
 
@@ -210,11 +126,13 @@ for k = 1:var_len
 
 		%% Creating CSG
 
-		a = csg;
+		obj_csg = csg;
 
 		% Rectangle
 
-		a.create_csg('rectangle',area_width,tot_height);
+		obj_csg.create_csg('rectangle',area_width,tot_height);
+		
+		obj_csg.sf = 'rect';
 
 		% Gold rectangle
 
@@ -223,21 +141,21 @@ for k = 1:var_len
 
 		% Cylinders
 
-		for i = 1:length(cent_cyl(1,:))
+		for i = 1:length(obj_cent.cent_y)
 			
 % 			a.create_csg('rectangle',area_width,[r_cyl , cent_cyl(2,i)]);
 
-			a.create_csg('circle',cent_cyl(:,i),r_cyl);
+			obj_csg.create_csg('circle',[obj_cent.cent_x(i) ; obj_cent.cent_y(i)],r_cyl);
 
 		end
 
 
 		%% Create Model, Geometry & Mesh
 
-		[dl,bt] = decsg(a.geom,a.sf,a.ns);
+		[dl,bt] = decsg(obj_csg.geom,obj_csg.sf,obj_csg.ns);
 
-		pdegplot(dl,'EdgeLabels','on','FaceLabels','on')
-		axis equal
+% 		pdegplot(dl,'EdgeLabels','on','FaceLabels','on')
+% 		axis equal
 		
 		model = createpde(1);
 
