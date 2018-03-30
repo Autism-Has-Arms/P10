@@ -66,7 +66,7 @@ for k = 1:var_len
 	ul_spacing = 1400;
 	area_width = 2*cyl_period;
 	
-	r_cyl = 20;
+	r_circ = 100;
 	
 % 	hmax = var_array(k);
 	
@@ -84,16 +84,21 @@ for k = 1:var_len
 	di_const2 = n2^2;
 	
 	
-	struct_shape = 'hexagonal'; % ['line','hexagonal'], [1 = Hexagonal structuring].
+	main_structure = 'circle'; % 'circle' or 'rectangle'.
 	
+	if strcmp(main_structure,'rectangle')
 	
-	if strcmp(struct_shape,'hexagonal') && r_cyl >= (cyl_period/sqrt(2))
+		cyl_pattern = 'hexagonal'; % ['line','hexagonal'], [1 = Hexagonal structuring].
+	
+		if strcmp(cyl_pattern,'hexagonal') && r_circ >= (cyl_period/sqrt(2))
 		
-		error(['Overlapping cylinders. Radius must be below r = ' , num2str(round(cyl_period/sqrt(2),2)) , '. (Hexagonal structure)'])
-		
-	elseif strcmp(struct_shape,'line') && r_cyl >= (cyl_period/2)
-		
-		error(['Overlapping cylinders. Radius must be below r = ' , num2str(round(cyl_period/2,2)) , '. (Line structure)'])
+			error(['Overlapping cylinders. Radius must be below r = ' , num2str(round(cyl_period/sqrt(2),2)) , '. (Hexagonal structure)'])
+
+		elseif strcmp(cyl_pattern,'line') && r_circ >= (cyl_period/2)
+
+			error(['Overlapping cylinders. Radius must be below r = ' , num2str(round(cyl_period/2,2)) , '. (Line structure)'])
+
+		end
 		
 	end
 
@@ -109,18 +114,22 @@ for k = 1:var_len
 	
 		%% Centres of cylinders.
 
-		if rows_cyl == 0
+		if strcmp(main_structure,'rectangle')
+		
+			if rows_cyl == 0
 
-			tot_height = ul_spacing;
+				tot_height = ul_spacing;
 
-		else
+			else
+
+				obj_cent = cent_gen(rows_cyl,cyl_period,area_width,cyl_pattern);
+
+				area_height = 2*max(obj_cent.cent_y) + cyl_period;
+
+				tot_height = ul_spacing + area_height;
+
+			end
 			
-			obj_cent = cent_gen(rows_cyl,cyl_period,area_width,struct_shape);
-
-			area_height = 2*max(obj_cent.cent_y) + cyl_period;
-
-			tot_height = ul_spacing + area_height;
-
 		end
 
 
@@ -128,26 +137,31 @@ for k = 1:var_len
 
 		obj_csg = csg;
 
-		% Rectangle
-
-		obj_csg.create_csg('rectangle',area_width,tot_height);
+		% Main structure
 		
-		obj_csg.sf = 'rect';
-
-		% Gold rectangle
-
-		% gold_rect = [3 , 4 , area_width/2 , -area_width/2 , -area_width/2 , area_width/2 , area_height/2 , area_height/2 , -area_height/2 , -area_height/2];
-		% ns = char(ns,'rect_g');
+		if strcmp(main_structure,'rectangle')
+		
+			obj_csg.create_csg('rectangle',area_width,tot_height);
+			obj_csg.sf = 'rect';
+		
+		elseif strcmp(main_structure,'circle')
+		
+			obj_csg.create_csg('circle',[0 0],r_circ);
+			obj_csg.sf = 'circ';
+			
+		end
+		
+		obj_csg.create_csg('rectangle',20,5);
 
 		% Cylinders
 
-		for i = 1:length(obj_cent.cent_y)
-			
-% 			a.create_csg('rectangle',area_width,[r_cyl , cent_cyl(2,i)]);
-
-			obj_csg.create_csg('circle',[obj_cent.cent_x(i) ; obj_cent.cent_y(i)],r_cyl);
-
-		end
+% 		for i = 1:length(obj_cent.cent_y)
+% 			
+% % 			a.create_csg('rectangle',area_width,[r_cyl , cent_cyl(2,i)]);
+% 
+% 			obj_csg.create_csg('circle',[obj_cent.cent_x(i) ; obj_cent.cent_y(i)],r_cyl);
+% 
+% 		end
 
 
 		%% Create Model, Geometry & Mesh
@@ -163,7 +177,7 @@ for k = 1:var_len
 
 		mesh = generateMesh(model,'Hmax',hmax,'Hgrad',1.05,'GeometricOrder','linear');
 
-% 		pdeplot(model);
+		pdeplot(model);
 
 		%% Triangle Manipulation
 
@@ -172,16 +186,25 @@ for k = 1:var_len
 		n_tri = length(mesh.Elements(1,:));
 
 		B = [2 1 1 ; 1 2 1 ; 1 1 2]/12;
+		
+		if strcmp(main_structure,'rectangle')
 
-		ind_top_edge = edge_ind(mesh,'y',tot_height/2);
+			ind_top_edge = edge_ind(mesh,'y',tot_height/2);
 
-		ind_bot_edge = edge_ind(mesh,'y',-tot_height/2);
+			ind_bot_edge = edge_ind(mesh,'y',-tot_height/2);
 
-		ind_right_edge = edge_ind(mesh,'x',area_width/2);
+			ind_right_edge = edge_ind(mesh,'x',area_width/2);
 
-		ind_left_edge = edge_ind(mesh,'x',-area_width/2);
+			ind_left_edge = edge_ind(mesh,'x',-area_width/2);
+			
+		elseif strcmp(main_structure,'circle')
+			
+			ind_peri_edge = edge_ind(mesh,'r',r_circ);
+			
+		end
 		
 	end
+	asd
 	
 	%% Zone determination
 	
@@ -191,8 +214,8 @@ for k = 1:var_len
 	
 	[~ , zone_majority_ind] = max(histc(dl(7,:),unique_zones));
 	
-	zone_rect = unique_zones(zone_majority_ind);
-	
+	zone_main = unique_zones(zone_majority_ind);
+	asd
 	%% Pre-calculation initialisations
 	
 	M = sparse(size(mesh.Nodes,2),size(mesh.Nodes,2));
@@ -207,7 +230,7 @@ for k = 1:var_len
 
 		zone = t(end,i);
 		
-		if zone == zone_rect %|| zone == 1
+		if zone == zone_main %|| zone == 1
 
 			diel_const = di_const1;
 
@@ -432,7 +455,7 @@ for k = 1:var_len
 	
 	cyl_amount(k) = rows_cyl;
 	
-	cyl_radius(k) = r_cyl;
+	cyl_radius(k) = r_circ;
 	
 	cyl_periods(k) = cyl_period;
 	
@@ -471,16 +494,22 @@ dispstat('Finished.','keepprev','timestamp');
 function edge_index = edge_ind(mesh,x_or_y,num)
 	
 	% Gives indices of triangles (in array 't') on selected edge.
-
+	
+	[p,e,t] = meshToPet(mesh);
+	
 	switch x_or_y
 		
 		case 'x'
 			
-			x_or_y = 1;
+			point_val = p(1,e([1,2],:));
 			
 		case 'y'
 			
-			x_or_y = 2;
+			point_val = p(2,e([1,2],:));
+			
+		case 'r'
+			
+			point_val = sqrt(p(1,e([1,2],:)).^2 + p(2,e([1,2],:)).^2);
 			
 		otherwise
 			
@@ -488,11 +517,9 @@ function edge_index = edge_ind(mesh,x_or_y,num)
 			
 	end
 	
-	[p,e,t] = meshToPet(mesh);
-	
 	% Get the corresponding edge ID for the given x/y value.
 	
-	edge_id = unique(e(5,sum(reshape(p(x_or_y,e([1,2],:)),2,length(p(x_or_y,e([1,2],:)))/2) == num) == 2));
+	edge_id = unique(e(5,sum(reshape(point_val,2,length(point_val)/2) == num) == 2));
 	
 	% All the edges with the given edge ID.
 	
@@ -515,13 +542,13 @@ function edge_index = edge_ind(mesh,x_or_y,num)
 	
 	edge_index = uni_ind(ind_no(:,2) == 2)';
 	
-	%{
+% 	%{
 	% Plot edge points
 	xv = p(1,e(1:2,apt_edges));
 	yv = p(2,e(1:2,apt_edges));
 	hold on
-	plot(xv,yv,'r*')
-	%}
+	plot(xv,yv,'black*')
+% 	%}
 	
 end
 

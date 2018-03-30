@@ -1,6 +1,21 @@
 classdef csg < handle
-	%CSG Creates Constructive Solid Geometry.
-	%   Detailed explanation goes here
+	% csg Creates Constructive Solid Geometry (CSG).
+	%	Class must be called to create object and gain access 
+	%	to containing methods/functions.
+	%
+	% csg Properties:
+	%	geom - The geometry of the structure in csg format.
+	%	ns - The custom name of the structure.
+	%	sf - The formula of the geometries.
+	%
+	% csg Methods:
+	%	create_csg - Geometric Generation.
+	%	Every call to this function appends data to the object's
+	%	properties.
+	%	If object type is a rectangle, (a) is width and (b) is
+	%	height.
+	%	If object type is a circle, (a) is centre coordinates and
+	%	(b)	is radius.
 	
 	properties
 		
@@ -14,8 +29,7 @@ classdef csg < handle
 		
 		function create_csg(obj,type,a,b)
 			
-			%CSG Construct an instance of this class
-			%   Detailed explanation goes here
+			% create_csg - Geometric Generation.
 			
 			switch type
 				

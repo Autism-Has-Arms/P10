@@ -1,6 +1,5 @@
 classdef cent_gen
-	%UNTITLED Summary of this class goes here
-	%   Detailed explanation goes here
+	%CENT_GEN Generates the x and y coordinates of cylinder centres.
 	
 	properties
 		
