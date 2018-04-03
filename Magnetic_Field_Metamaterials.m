@@ -88,7 +88,7 @@ for k = 1:var_len
 	
 	if strcmp(main_structure,'rectangle')
 	
-		cyl_pattern = 'hexagonal'; % ['line','hexagonal'], [1 = Hexagonal structuring].
+		cyl_pattern = 'hexagonal'; % ['line','hexagonal'].
 	
 		if strcmp(cyl_pattern,'hexagonal') && r_circ >= (cyl_period/sqrt(2))
 		
@@ -177,7 +177,7 @@ for k = 1:var_len
 
 		mesh = generateMesh(model,'Hmax',hmax,'Hgrad',1.05,'GeometricOrder','linear');
 
-		pdeplot(model);
+% 		pdeplot(model);
 
 		%% Triangle Manipulation
 
@@ -204,7 +204,7 @@ for k = 1:var_len
 		end
 		
 	end
-	asd
+	
 	
 	%% Zone determination
 	
@@ -215,15 +215,17 @@ for k = 1:var_len
 	[~ , zone_majority_ind] = max(histc(dl(7,:),unique_zones));
 	
 	zone_main = unique_zones(zone_majority_ind);
-	asd
+	
+	
 	%% Pre-calculation initialisations
 	
-	M = sparse(size(mesh.Nodes,2),size(mesh.Nodes,2));
+	M = spalloc(size(mesh.Nodes,2),size(mesh.Nodes,2),3*length(p));
 	
 	ind_saved = [];
 
 	bv = zeros(length(p),1);
 
+	
 	%% Calculations
 
 	for i = 1:n_tri
@@ -271,34 +273,30 @@ for k = 1:var_len
 		Mk = k0^2 * B * area_tri_k - A/diel_const;
 
 
-		% Triangles with a side touching top or bottom edge.
+		%% Triangles with a side touching top or bottom edge.
 
-		if any(i == ind_top_edge) || any(i == ind_bot_edge)
-
-			% x and y values of the three points in the i'th triangle.
-
-			point_vec_ud = p(:,t(1:3,i));
+		if exist('ind_top_edge','var') && (any(i == ind_top_edge) || any(i == ind_bot_edge))
 
 			% Find which two indices have the same y value.
 
-			ind_same_yval = logical(sum(repmat(point_vec_ud(2,:),3,1) == repmat(point_vec_ud(2,:)',1,3)) - 1);
+			ind_same_yval = logical(sum(repmat(xy_val(2,:),3,1) == repmat(xy_val(2,:)',1,3)) - 1);
 
 			% Length is calculated as the difference between the corresponding
 			% x values (since they have the same y value).
 
-			edge_length = abs(diff(point_vec_ud(1,ind_same_yval)));
+			edge_length = abs(diff(xy_val(1,ind_same_yval)));
 
 			if any(i == ind_top_edge)
 
 				% The y value is found by using the first index.
 
-				y_val = point_vec_ud(2,find(ind_same_yval,1));
+				y_val = xy_val(2,find(ind_same_yval,1));
 
 				H0 = exp(-1i * k0 * sqrt(diel_const) * y_val);
 
 				bk = 1i * k0 * diel_const * H0 * edge_length;
 
-				bv(t(ind_same_yval,i)) = bv(t(ind_same_yval,i)) + bk; %<-- Husk vinkelafh??ngig.
+				bv(t(ind_same_yval,i)) = bv(t(ind_same_yval,i)) + bk; %<-- Husk vinkelafhængig.
 
 			end
 
@@ -306,6 +304,54 @@ for k = 1:var_len
 			temp_mat(ind_same_yval,ind_same_yval) = [2 1 ; 1 2];
 
 			C = 1i * edge_length * sqrt(diel_const) * k0 * (1/diel_const) * temp_mat/6;
+
+			Mk = Mk + C;
+
+		end
+		
+		
+		%% Circle geometry.
+		
+		if exist('ind_peri_edge','var') && any(i == ind_peri_edge)
+
+			% Find which two indices are on the periphery.
+			
+			% Overall length is found.
+			
+			ind_peri = sqrt(xy_val(1,:).^2 + xy_val(2,:).^2);
+			
+			% Round result to 2 decimal places.
+			
+			ind_peri = round(ind_peri,2);
+			
+			% Extend arrays into matrices and compare the indices.
+			
+			ind_peri = repmat(ind_peri,3,1) == repmat(ind_peri,3,1).';
+			
+			% Summarise the rows and subtract 1 to find the columns of the
+			% identical values. Values are converted to logicals values to
+			% enable indexing.
+			
+			ind_peri = logical(sum(ind_peri) - 1);
+
+			% Length is calculated by using the norm.
+
+			edge_length = norm(diff(xy_val(:,ind_peri).').');
+
+			% The y value is found by using the first index.
+
+			y_val = xy_val(2,ind_peri);
+
+			E0 = exp(-1i * k0 * sqrt(diel_const) * y_val);
+
+			bk = ((1 - (y_val/r_circ)) * 1i * k0 * sqrt(diel_const) - 1/(2 * r_circ)) .* E0 * edge_length/2;
+
+			bv(t(ind_peri,i)) = bv(t(ind_peri,i)) + bk.'; %<-- Husk vinkelafhængig.
+
+			temp_mat = zeros(3);
+			temp_mat(ind_peri,ind_peri) = [2 1 ; 1 2];
+
+			C = edge_length/6 * (1i * k0 * sqrt(diel_const) - 1/(2 * r_circ)) * temp_mat;
 
 			Mk = Mk + C;
 
@@ -326,21 +372,17 @@ for k = 1:var_len
 	end
 
 
-	% Periodic boundary conditions
+	%% Periodic boundary conditions
 
 	for i = 1:n_tri
 
-		if any(i == ind_left_edge)
+		if exist('ind_left_edge','var') && any(i == ind_left_edge)
 
 			ind_opposite = ind_right_edge;
 
-			% x and y values of the three points in the i'th triangle.
+			% Check which two indices in xy_val have the same x value.
 
-			point_vec_lr = p(:,t(1:3,i));
-
-			% Check which two indices in point_vec_lr have the same x value.
-
-			ind_same_xval = logical(sum(repmat(point_vec_lr(1,:),3,1) == repmat(point_vec_lr(1,:)',1,3)) - 1);
+			ind_same_xval = logical(sum(repmat(xy_val(1,:),3,1) == repmat(xy_val(1,:)',1,3)) - 1);
 
 			% The corresponding indices in the 'p' array.
 
@@ -411,9 +453,9 @@ for k = 1:var_len
 	hold on
 	pdegplot(dl)
 	axis equal
-	% colormap gray 
+	colormap gray 
 
-
+asd
 	%% Plotting values of line down through structure
 
 	line_x = linspace(0,0,500);
@@ -542,13 +584,13 @@ function edge_index = edge_ind(mesh,x_or_y,num)
 	
 	edge_index = uni_ind(ind_no(:,2) == 2)';
 	
-% 	%{
+	%{
 	% Plot edge points
 	xv = p(1,e(1:2,apt_edges));
 	yv = p(2,e(1:2,apt_edges));
 	hold on
 	plot(xv,yv,'black*')
-% 	%}
+	%}
 	
 end
 
