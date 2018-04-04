@@ -92,11 +92,11 @@ for k = 1:var_len
 	
 		if strcmp(cyl_pattern,'hexagonal') && r_circ >= (cyl_period/sqrt(2))
 		
-			error(['Overlapping cylinders. Radius must be below r = ' , num2str(round(cyl_period/sqrt(2),2)) , '. (Hexagonal structure)'])
+			error(['Overlapping cylinders. Radius (r_circ) must be below r = ' , num2str(round(cyl_period/sqrt(2),2)) , '. (Hexagonal structure)'])
 
 		elseif strcmp(cyl_pattern,'line') && r_circ >= (cyl_period/2)
 
-			error(['Overlapping cylinders. Radius must be below r = ' , num2str(round(cyl_period/2,2)) , '. (Line structure)'])
+			error(['Overlapping cylinders. Radius (r_circ) must be below r = ' , num2str(round(cyl_period/2,2)) , '. (Line structure)'])
 
 		end
 		
@@ -112,7 +112,7 @@ for k = 1:var_len
 
 	if length(lambda) == 1 || k == 1
 	
-		%% Centres of cylinders.
+		%% Centres of cylinders
 
 		if strcmp(main_structure,'rectangle')
 		
@@ -273,13 +273,13 @@ for k = 1:var_len
 		Mk = k0^2 * B * area_tri_k - A/diel_const;
 
 
-		%% Triangles with a side touching top or bottom edge.
+		%% Triangles with a side touching top or bottom edge
 
 		if exist('ind_top_edge','var') && (any(i == ind_top_edge) || any(i == ind_bot_edge))
 
 			% Find which two indices have the same y value.
 
-			ind_same_yval = logical(sum(repmat(xy_val(2,:),3,1) == repmat(xy_val(2,:)',1,3)) - 1);
+			ind_same_yval = logical(sum(repmat(xy_val(2,:),3,1) == repmat(xy_val(2,:),3,1)') - 1);
 
 			% Length is calculated as the difference between the corresponding
 			% x values (since they have the same y value).
@@ -310,7 +310,7 @@ for k = 1:var_len
 		end
 		
 		
-		%% Circle geometry.
+		%% Circle geometry
 		
 		if exist('ind_peri_edge','var') && any(i == ind_peri_edge)
 
@@ -342,7 +342,7 @@ for k = 1:var_len
 
 			y_val = xy_val(2,ind_peri);
 
-			E0 = exp(-1i * k0 * sqrt(diel_const) * y_val);
+			E0 = exp(-1i * k0 * sqrt(diel_const) * y_val);	
 
 			bk = ((1 - (y_val/r_circ)) * 1i * k0 * sqrt(diel_const) - 1/(2 * r_circ)) .* E0 * edge_length/2;
 
