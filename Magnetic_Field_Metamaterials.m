@@ -54,7 +54,7 @@ for k = 1:var_len
 	
 	% Determines maximum size of elements. Therefore larger values of hmax
 	% creates fewer elements. 
-	hmax = 1.6;
+	hmax = 20;
 	
 	% Cylinder specifics
 
@@ -66,7 +66,9 @@ for k = 1:var_len
 	ul_spacing = 1400;
 	area_width = 2*cyl_period;
 	
-	r_circ = 100;
+	r_circ = 3000;
+	
+	theta = pi;
 	
 % 	hmax = var_array(k);
 	
@@ -79,7 +81,7 @@ for k = 1:var_len
 	% Minor calculations
 	
 	n1 = 1;
-	n2 = interp1(r_i(:,1),r_i(:,2)+r_i(:,3)*1i,lambda);
+	n2 = 12;%interp1(r_i(:,1),r_i(:,2)+r_i(:,3)*1i,lambda);
 	di_const1 = n1^2;
 	di_const2 = n2^2;
 	
@@ -151,7 +153,13 @@ for k = 1:var_len
 			
 		end
 		
-		obj_csg.create_csg('rectangle',20,5);
+% 		obj_csg.create_csg('rectangle',20,5);
+
+		obj_csg.create_csg('circle',[0 , 0],200);
+		
+		obj_csg.create_csg('circle',[0 , 0],300);
+		
+		obj_csg.create_csg('circle',[0 , 0],2900);
 
 		% Cylinders
 
@@ -159,7 +167,7 @@ for k = 1:var_len
 % 			
 % % 			a.create_csg('rectangle',area_width,[r_cyl , cent_cyl(2,i)]);
 % 
-% 			obj_csg.create_csg('circle',[obj_cent.cent_x(i) ; obj_cent.cent_y(i)],r_cyl);
+% 			obj_csg.create_csg('circle',[obj_cent.cent_x(i) ; obj_cent.cent_y(i)],r_circ);
 % 
 % 		end
 
@@ -175,31 +183,36 @@ for k = 1:var_len
 
 		model.geometryFromEdges(dl);
 
-		mesh = generateMesh(model,'Hmax',hmax,'Hgrad',1.05,'GeometricOrder','linear');
-
-% 		pdeplot(model);
+		mesh = generateMesh(model,'Hmax',30,'GeometricOrder','linear');
+		
 
 		%% Triangle Manipulation
 
 		[p,e,t] = meshToPet(mesh);
-
-		n_tri = length(mesh.Elements(1,:));
+		
+		[p,e,t] = refinemesh(dl,p,e,t,[2 3 4]);
+		
+		[p,e,t] = refinemesh(dl,p,e,t,[2 3 4]);
+		
+% 		pdemesh(p,e,t)
+		
+		n_tri = size(t,2);
 
 		B = [2 1 1 ; 1 2 1 ; 1 1 2]/12;
 		
 		if strcmp(main_structure,'rectangle')
 
-			ind_top_edge = edge_ind(mesh,'y',tot_height/2);
+			ind_top_edge = edge_ind({p,e,t},'y',tot_height/2);
 
-			ind_bot_edge = edge_ind(mesh,'y',-tot_height/2);
+			ind_bot_edge = edge_ind({p,e,t},'y',-tot_height/2);
 
-			ind_right_edge = edge_ind(mesh,'x',area_width/2);
+			ind_right_edge = edge_ind({p,e,t},'x',area_width/2);
 
-			ind_left_edge = edge_ind(mesh,'x',-area_width/2);
+			ind_left_edge = edge_ind({p,e,t},'x',-area_width/2);
 			
 		elseif strcmp(main_structure,'circle')
 			
-			ind_peri_edge = edge_ind(mesh,'r',r_circ);
+			ind_peri_edge = edge_ind({p,e,t},'r',r_circ);
 			
 		end
 		
@@ -208,18 +221,20 @@ for k = 1:var_len
 	
 	%% Zone determination
 	
-	unique_zones = unique(dl(7,:));
+	unique_zones = unique([dl(6,:) , dl(7,:)]);
 	
 	unique_zones = unique_zones(~unique_zones == 0);
 	
-	[~ , zone_majority_ind] = max(histc(dl(7,:),unique_zones));
+	zone_max = max(histc([dl(6,:) , dl(7,:)],unique_zones));
+	
+	zone_majority_ind = histc([dl(6,:) , dl(7,:)],unique_zones) == zone_max;
 	
 	zone_main = unique_zones(zone_majority_ind);
 	
 	
 	%% Pre-calculation initialisations
 	
-	M = spalloc(size(mesh.Nodes,2),size(mesh.Nodes,2),3*length(p));
+	M = spalloc(size(p,2),size(p,2),3*length(p));
 	
 	ind_saved = [];
 
@@ -232,7 +247,7 @@ for k = 1:var_len
 
 		zone = t(end,i);
 		
-		if zone == zone_main %|| zone == 1
+		if any(zone == [1 2 3]) %any(zone == zone_main) %|| zone == 1
 
 			diel_const = di_const1;
 
@@ -340,11 +355,11 @@ for k = 1:var_len
 
 			% The y value is found by using the first index.
 
-			y_val = xy_val(2,ind_peri);
+			fun_ang = cos(theta) * xy_val(1,ind_peri) + sin(theta) * xy_val(2,ind_peri);
 
-			E0 = exp(-1i * k0 * sqrt(diel_const) * y_val);	
+			E0 = exp(-1i * k0 * sqrt(diel_const) * fun_ang);
 
-			bk = ((1 - (y_val/r_circ)) * 1i * k0 * sqrt(diel_const) - 1/(2 * r_circ)) .* E0 * edge_length/2;
+			bk = ((1 + fun_ang/r_circ) * 1i * k0 * sqrt(diel_const) - 1/(2 * r_circ)) .* E0 * edge_length/2;
 
 			bv(t(ind_peri,i)) = bv(t(ind_peri,i)) + bk.'; %<-- Husk vinkelafhængig.
 
@@ -453,9 +468,10 @@ for k = 1:var_len
 	hold on
 	pdegplot(dl)
 	axis equal
-	colormap gray 
+	colormap gray
+% 	caxis([0 2])
 
-asd
+	asd
 	%% Plotting values of line down through structure
 
 	line_x = linspace(0,0,500);
@@ -533,25 +549,25 @@ dispstat('Finished.','keepprev','timestamp');
 
 %% Indices of Triangles on Edges
 
-function edge_index = edge_ind(mesh,x_or_y,num)
+function edge_index = edge_ind(pet,x_or_y,num)
 	
 	% Gives indices of triangles (in array 't') on selected edge.
 	
-	[p,e,t] = meshToPet(mesh);
+	[p,e,t] = pet{:};
 	
 	switch x_or_y
 		
 		case 'x'
 			
-			point_val = p(1,e([1,2],:));
+			point_val = [p(1,e(1,:)) ; p(1,e(2,:))];
 			
 		case 'y'
 			
-			point_val = p(2,e([1,2],:));
+			point_val = [p(2,e(1,:)) ; p(2,e(2,:))];
 			
 		case 'r'
 			
-			point_val = sqrt(p(1,e([1,2],:)).^2 + p(2,e([1,2],:)).^2);
+			point_val = sqrt([p(1,e(1,:)) ; p(1,e(2,:))].^2 + [p(2,e(1,:)) ; p(2,e(2,:))].^2);
 			
 		otherwise
 			
@@ -559,30 +575,21 @@ function edge_index = edge_ind(mesh,x_or_y,num)
 			
 	end
 	
-	% Get the corresponding edge ID for the given x/y value.
+	% Get the corresponding edge ID for the given x/y/r value.
 	
-	edge_id = unique(e(5,sum(reshape(point_val,2,length(point_val)/2) == num) == 2));
+	edge_id = unique(e(5,sum(point_val == num) == 2));
 	
 	% All the edges with the given edge ID.
 	
-	apt_edges = logical(sum(e(5,:) == edge_id',1));
+	apt_edges = logical(sum(e(5,:) == edge_id'));
 	
 	% Get the indices in 'p' of the 2 points which make up the edges.
 	
 	ind_edge_points = [e(1,apt_edges);e(2,apt_edges)];
 	
-	% Get indices of triangle array 't' which include two points on
-	% selected edge.
-	
-	ind_tri = ceil(find(ismember(t(1:3,:),ind_edge_points))/3);
-	
-	uni_ind = unique(ind_tri);
-	
-	ind_no = [uni_ind,histc(ind_tri,uni_ind)];
-	
 	% Choosing only the indices which appear twice.
 	
-	edge_index = uni_ind(ind_no(:,2) == 2)';
+	edge_index = find(sum(ismember(t(1:3,:),ind_edge_points)) == 2);
 	
 	%{
 	% Plot edge points
