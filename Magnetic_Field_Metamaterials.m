@@ -464,29 +464,44 @@ for k = 1:var_len
 
 	Hv = M\bv;
 
-	pdeplot(p,e,t,'xydata',abs(Hv))
+	pdeplot(p,e,t,'Zdata',abs(Hv),'xydata',abs(Hv))
+	colormap parula
 	hold on
 	pdegplot(dl)
-	axis equal
-	colormap gray
-% 	caxis([0 2])
+% 	axis equal
+	caxis([0 1.5])
 
-	asd
+	
 	%% Plotting values of line down through structure
-
+	
+	angle_peri = linspace(0,2*pi,10000);
+	
+	line_x = cos(angle_peri) .* r_circ ./ 30;
+	
+	line_y = sin(angle_peri) .* r_circ ./ 30;
+	
+	%{
 	line_x = linspace(0,0,500);
 
 	line_y = linspace(-tot_height,tot_height,500);
-
+	%}
 	% Interpolant
+	
+	fun_ang = cos(angle_peri) .* line_x + sin(angle_peri) .* line_y;
+
+	E0_line = exp(-1i * k0 * sqrt(diel_const) * fun_ang).';
 
 	int_F = pdeInterpolant(p,t,Hv);
 
-	line_abs = abs(evaluate(int_F,[line_x;line_y]));
+	line_abs = abs(evaluate(int_F,[line_x;line_y]) - E0_line).^2;
+	
+	curve_area = trapz(angle_peri,line_abs);
+	
+	figure(2)
 
-	% figure(2)
-
-	% plot(line_y,line_abs)
+	plot(angle_peri,line_abs)
+	
+% 	plot(line_y,line_abs)
 
 	% axis([-tot_height tot_height -1.5 1.5])
 
