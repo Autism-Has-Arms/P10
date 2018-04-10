@@ -11,7 +11,7 @@ if exist('disppct.m','file') == 2 && exist('dispstat.m','file') == 2
 
 end
 
-% var_object = 'n_cyl = linspace(0,15,16)';
+var_object = 'lambda = linspace(300,1200,10)';
 
 if exist('var_object','var')
 	
@@ -43,6 +43,8 @@ cyl_radius = zeros(1,length(var_len));
 
 cyl_periods = zeros(1,length(var_len));
 
+scat_cross = zeros(1,length(var_len));
+
 for k = 1:var_len
 
 	%% Parameters
@@ -54,7 +56,7 @@ for k = 1:var_len
 	
 	% Determines maximum size of elements. Therefore larger values of hmax
 	% creates fewer elements. 
-	hmax = 20;
+	hmax = 3;
 	
 	% Cylinder specifics
 
@@ -66,7 +68,7 @@ for k = 1:var_len
 	ul_spacing = 1400;
 	area_width = 2*cyl_period;
 	
-	r_circ = 3000;
+	r_circ = 20;
 	
 	theta = pi;
 	
@@ -81,12 +83,12 @@ for k = 1:var_len
 	% Minor calculations
 	
 	n1 = 1;
-	n2 = 12;%interp1(r_i(:,1),r_i(:,2)+r_i(:,3)*1i,lambda);
+	n2 = interp1(r_i(:,1),r_i(:,2)+r_i(:,3)*1i,lambda);
 	di_const1 = n1^2;
 	di_const2 = n2^2;
 	
 	
-	main_structure = 'circle'; % 'circle' or 'rectangle'.
+	main_structure = 'rectangle'; % 'circle' or 'rectangle'.
 	
 	if strcmp(main_structure,'rectangle')
 	
@@ -157,9 +159,9 @@ for k = 1:var_len
 
 		obj_csg.create_csg('circle',[0 , 0],200);
 		
-		obj_csg.create_csg('circle',[0 , 0],300);
+% 		obj_csg.create_csg('circle',[0 , 0],300);
 		
-		obj_csg.create_csg('circle',[0 , 0],2900);
+% 		obj_csg.create_csg('circle',[0 , 0],2900);
 
 		% Cylinders
 
@@ -183,16 +185,16 @@ for k = 1:var_len
 
 		model.geometryFromEdges(dl);
 
-		mesh = generateMesh(model,'Hmax',30,'GeometricOrder','linear');
+		mesh = generateMesh(model,'Hmax',hmax,'GeometricOrder','linear');
 		
 
 		%% Triangle Manipulation
 
 		[p,e,t] = meshToPet(mesh);
 		
-		[p,e,t] = refinemesh(dl,p,e,t,[2 3 4]);
-		
-		[p,e,t] = refinemesh(dl,p,e,t,[2 3 4]);
+% 		[p,e,t] = refinemesh(dl,p,e,t,[2 3 4]);
+% 		
+% 		[p,e,t] = refinemesh(dl,p,e,t,[2 3 4]);
 		
 % 		pdemesh(p,e,t)
 		
@@ -247,7 +249,7 @@ for k = 1:var_len
 
 		zone = t(end,i);
 		
-		if any(zone == [1 2 3]) %any(zone == zone_main) %|| zone == 1
+		if zone == zone_main%[1 2 3]) %any(zone == zone_main)
 
 			diel_const = di_const1;
 
@@ -306,12 +308,14 @@ for k = 1:var_len
 				% The y value is found by using the first index.
 
 				y_val = xy_val(2,find(ind_same_yval,1));
-
+				
+% 				fun_ang = cos(theta) * xy_val(1,ind_same_yval) + sin(theta) * xy_val(2,ind_same_yval);
+				
 				H0 = exp(-1i * k0 * sqrt(diel_const) * y_val);
 
 				bk = 1i * k0 * diel_const * H0 * edge_length;
 
-				bv(t(ind_same_yval,i)) = bv(t(ind_same_yval,i)) + bk; %<-- Husk vinkelafhængig.
+				bv(t(ind_same_yval,i)) = bv(t(ind_same_yval,i)) + bk.'; %<-- Husk vinkelafhængig.
 
 			end
 
@@ -359,14 +363,14 @@ for k = 1:var_len
 
 			E0 = exp(-1i * k0 * sqrt(diel_const) * fun_ang);
 
-			bk = ((1 + fun_ang/r_circ) * 1i * k0 * sqrt(diel_const) - 1/(2 * r_circ)) .* E0 * edge_length/2;
+			bk = ((1 + fun_ang/r_circ) * 1i * k0 * sqrt(diel_const) - 1/(2 * r_circ)) .* E0 * edge_length/(2 * diel_const);
 
 			bv(t(ind_peri,i)) = bv(t(ind_peri,i)) + bk.'; %<-- Husk vinkelafhængig.
 
 			temp_mat = zeros(3);
 			temp_mat(ind_peri,ind_peri) = [2 1 ; 1 2];
 
-			C = edge_length/6 * (1i * k0 * sqrt(diel_const) - 1/(2 * r_circ)) * temp_mat;
+			C = (edge_length/6 * (1i * k0 * sqrt(diel_const) - 1/(2 * r_circ)) * temp_mat)/diel_const;
 
 			Mk = Mk + C;
 
@@ -464,12 +468,12 @@ for k = 1:var_len
 
 	Hv = M\bv;
 
-	pdeplot(p,e,t,'Zdata',abs(Hv),'xydata',abs(Hv))
-	colormap parula
-	hold on
-	pdegplot(dl)
+% 	pdeplot(p,e,t,'xydata',abs(Hv))%,'Zdata',abs(Hv))
+% 	colormap gray %parula
+% 	hold on
+% 	pdegplot(dl)
 % 	axis equal
-	caxis([0 1.5])
+% 	caxis([0 1.5])
 
 	
 	%% Plotting values of line down through structure
@@ -495,11 +499,12 @@ for k = 1:var_len
 
 	line_abs = abs(evaluate(int_F,[line_x;line_y]) - E0_line).^2;
 	
-	curve_area = trapz(angle_peri,line_abs);
+	curve_area = trapz(angle_peri,line_abs/r_circ);
 	
-	figure(2)
+% 	figure(2)
 
-	plot(angle_peri,line_abs)
+% 	scatter3(cos(angle_peri)*r_circ,sin(angle_peri)*r_circ,line_abs,1,line_abs)
+% 	plot(angle_peri,line_abs)
 	
 % 	plot(line_y,line_abs)
 
@@ -532,8 +537,10 @@ for k = 1:var_len
 	
 	cyl_periods(k) = cyl_period;
 	
+	scat_cross(k) = curve_area;
+	
 end
-
+asd
 %% Writing to file
 
 if logical(exist('var_array','var'))
