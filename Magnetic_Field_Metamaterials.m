@@ -11,7 +11,7 @@ if exist('disppct.m','file') == 2 && exist('dispstat.m','file') == 2
 
 end
 
-var_object = 'lambda = linspace(300,1200,10)';
+% var_object = 'lambda = linspace(188,300,12)';
 
 if exist('var_object','var')
 	
@@ -45,41 +45,55 @@ cyl_periods = zeros(1,length(var_len));
 
 scat_cross = zeros(1,length(var_len));
 
+i_for = 0;
+
 for k = 1:var_len
 
 	%% Parameters
+	
+	main_structure = 'circle'; % 'circle' or 'rectangle'.
 
 	lambda = 700;
+	
+	theta = 0;
+	
+	% Determines maximum size of elements. Therefore larger values of hmax
+	% creates fewer elements. 
+	hmax = 4;
+	
+	if strcmp(main_structure,'circle')
+		
+		hmax = hmax * 10;
+		
+		r_circ = 3000;	% Radius of main scattering structure or of smaller cylinders.
+		
+	elseif strcmp(main_structure,'rectangle')
+		
+		hmax = hmax;
+		
+		rows_cyl = 11;
+		cyl_period = 30;
+		
+		ul_spacing = 1400;
+		area_width = 2*cyl_period;
+		
+		cyl_pattern = 'hexagonal'; % ['line','hexagonal'].
+
+		if strcmp(cyl_pattern,'hexagonal') && r_cyl >= (cyl_period/sqrt(2))
+
+			error(['Overlapping cylinders. Radius (r_cyl) must be below r = ' , num2str(round(cyl_period/sqrt(2),2)) , '. (Hexagonal structure)'])
+
+		elseif strcmp(cyl_pattern,'line') && r_cyl >= (cyl_period/2)
+
+			error(['Overlapping cylinders. Radius (r_cyl) must be below r = ' , num2str(round(cyl_period/2,2)) , '. (Line structure)'])
+			
+		end
+		
+	end
 	
 	r_i = load('Gold_refractive_index_file_J_C.m');
 	% r_i = load('Silver_refractive_index_file_J_C.m');
 	
-	% Determines maximum size of elements. Therefore larger values of hmax
-	% creates fewer elements. 
-	hmax = 3;
-	
-	% Cylinder specifics
-
-	rows_cyl = 11;
-	cyl_period = 30;
-	
-	% Area specifics
-
-	ul_spacing = 1400;
-	area_width = 2*cyl_period;
-	
-	r_circ = 20;
-	
-	theta = pi;
-	
-% 	hmax = var_array(k);
-	
-	if exist('var_string','var')
-		
-		eval(var_string)
-		
-	end
-
 	% Minor calculations
 	
 	n1 = 1;
@@ -87,22 +101,9 @@ for k = 1:var_len
 	di_const1 = n1^2;
 	di_const2 = n2^2;
 	
-	
-	main_structure = 'rectangle'; % 'circle' or 'rectangle'.
-	
-	if strcmp(main_structure,'rectangle')
-	
-		cyl_pattern = 'hexagonal'; % ['line','hexagonal'].
-	
-		if strcmp(cyl_pattern,'hexagonal') && r_circ >= (cyl_period/sqrt(2))
+	if exist('var_string','var')
 		
-			error(['Overlapping cylinders. Radius (r_circ) must be below r = ' , num2str(round(cyl_period/sqrt(2),2)) , '. (Hexagonal structure)'])
-
-		elseif strcmp(cyl_pattern,'line') && r_circ >= (cyl_period/2)
-
-			error(['Overlapping cylinders. Radius (r_circ) must be below r = ' , num2str(round(cyl_period/2,2)) , '. (Line structure)'])
-
-		end
+		eval(var_string)
 		
 	end
 
@@ -153,15 +154,19 @@ for k = 1:var_len
 			obj_csg.create_csg('circle',[0 0],r_circ);
 			obj_csg.sf = 'circ';
 			
+% 			tot_height = r_circ;
+			
 		end
+		
+		radius = 200;
 		
 % 		obj_csg.create_csg('rectangle',20,5);
 
-		obj_csg.create_csg('circle',[0 , 0],200);
+		obj_csg.create_csg('circle',[0 , 0],radius);
 		
-% 		obj_csg.create_csg('circle',[0 , 0],300);
+		obj_csg.create_csg('circle',[0 , 0],radius * (1 + 1/4));
 		
-% 		obj_csg.create_csg('circle',[0 , 0],2900);
+		obj_csg.create_csg('circle',[0 , 0],r_circ * (1 - 1/30));
 
 		% Cylinders
 
@@ -169,7 +174,7 @@ for k = 1:var_len
 % 			
 % % 			a.create_csg('rectangle',area_width,[r_cyl , cent_cyl(2,i)]);
 % 
-% 			obj_csg.create_csg('circle',[obj_cent.cent_x(i) ; obj_cent.cent_y(i)],r_circ);
+% 			obj_csg.create_csg('circle',[obj_cent.cent_x(i) ; obj_cent.cent_y(i)],r_cyl);
 % 
 % 		end
 
@@ -180,7 +185,7 @@ for k = 1:var_len
 
 % 		pdegplot(dl,'EdgeLabels','on','FaceLabels','on')
 % 		axis equal
-		
+
 		model = createpde(1);
 
 		model.geometryFromEdges(dl);
@@ -192,9 +197,9 @@ for k = 1:var_len
 
 		[p,e,t] = meshToPet(mesh);
 		
-% 		[p,e,t] = refinemesh(dl,p,e,t,[2 3 4]);
-% 		
-% 		[p,e,t] = refinemesh(dl,p,e,t,[2 3 4]);
+		[p,e,t] = refinemesh(dl,p,e,t,[2 3 4]);
+		
+		[p,e,t] = refinemesh(dl,p,e,t,[2 3 4]);
 		
 % 		pdemesh(p,e,t)
 		
@@ -212,9 +217,13 @@ for k = 1:var_len
 
 			ind_left_edge = edge_ind({p,e,t},'x',-area_width/2);
 			
+			n_for = 2*var_len;
+			
 		elseif strcmp(main_structure,'circle')
 			
 			ind_peri_edge = edge_ind({p,e,t},'r',r_circ);
+			
+			n_for = var_len;
 			
 		end
 		
@@ -245,11 +254,13 @@ for k = 1:var_len
 	
 	%% Calculations
 
+	i_for = i_for + 1;
+	
 	for i = 1:n_tri
 
 		zone = t(end,i);
 		
-		if zone == zone_main%[1 2 3]) %any(zone == zone_main)
+		if any(zone == [1 2 3]) %any(zone == zone_main)
 
 			diel_const = di_const1;
 
@@ -277,7 +288,7 @@ for k = 1:var_len
 
 		d11 = (-1 * du_dx - 1 * dv_dx) * (-1 * du_dx - 1 * dv_dx) + (-1 * du_dy - 1 * dv_dy) * (-1 * du_dy - 1 * dv_dy);
 		d12 = (-1 * du_dx - 1 * dv_dx) * (+1 * du_dx + 0 * dv_dx) + (-1 * du_dy - 1 * dv_dy) * (+1 * du_dy + 0 * dv_dy);
-		d13 = (-1 * du_dx - 1 * dv_dx) * (+0 * du_dx + 1 * dv_dx) + (-1 * du_dy - 1 * dv_dy) * (+0 * du_dy + 1 * dv_dy);   
+		d13 = (-1 * du_dx - 1 * dv_dx) * (+0 * du_dx + 1 * dv_dx) + (-1 * du_dy - 1 * dv_dy) * (+0 * du_dy + 1 * dv_dy);
 		d21 = (+1 * du_dx + 0 * dv_dx) * (-1 * du_dx - 1 * dv_dx) + (+1 * du_dy + 0 * dv_dy) * (-1 * du_dy - 1 * dv_dy);
 		d22 = (+1 * du_dx + 0 * dv_dx) * (+1 * du_dx + 0 * dv_dx) + (+1 * du_dy + 0 * dv_dy) * (+1 * du_dy + 0 * dv_dy);
 		d23 = (+1 * du_dx + 0 * dv_dx) * (+0 * du_dx + 1 * dv_dx) + (+1 * du_dy + 0 * dv_dy) * (+0 * du_dy + 1 * dv_dy);
@@ -361,9 +372,9 @@ for k = 1:var_len
 
 			fun_ang = cos(theta) * xy_val(1,ind_peri) + sin(theta) * xy_val(2,ind_peri);
 
-			E0 = exp(-1i * k0 * sqrt(diel_const) * fun_ang);
+			E0 = exp(1i * k0 * sqrt(diel_const) * fun_ang);
 
-			bk = ((1 + fun_ang/r_circ) * 1i * k0 * sqrt(diel_const) - 1/(2 * r_circ)) .* E0 * edge_length/(2 * diel_const);
+			bk = ((1 - fun_ang/r_circ) * 1i * k0 * sqrt(diel_const) - 1/(2 * r_circ)) .* E0 * edge_length/(2 * diel_const);
 
 			bv(t(ind_peri,i)) = bv(t(ind_peri,i)) + bk.'; %<-- Husk vinkelafhængig.
 
@@ -380,7 +391,7 @@ for k = 1:var_len
 
 		if exist('disppct.m','file') == 2 && exist('dispstat.m','file') == 2
 
-			pct = disppct(i,n_tri,pct,2*k-1,2*var_len);
+			pct = disppct(i,n_tri,pct,i_for,n_for);
 
 		else
 
@@ -393,75 +404,81 @@ for k = 1:var_len
 
 	%% Periodic boundary conditions
 
-	for i = 1:n_tri
+	if exist('ind_left_edge','var')
+		
+		i_for = i_for + 1;
+		
+		for i = 1:n_tri
 
-		if exist('ind_left_edge','var') && any(i == ind_left_edge)
+			if  any(i == ind_left_edge)
 
-			ind_opposite = ind_right_edge;
+				ind_opposite = ind_right_edge;
 
-			% Check which two indices in xy_val have the same x value.
+				% Check which two indices in xy_val have the same x value.
 
-			ind_same_xval = logical(sum(repmat(xy_val(1,:),3,1) == repmat(xy_val(1,:)',1,3)) - 1);
+				ind_same_xval = logical(sum(repmat(xy_val(1,:),3,1) == repmat(xy_val(1,:)',1,3)) - 1);
 
-			% The corresponding indices in the 'p' array.
+				% The corresponding indices in the 'p' array.
 
-			ind_in_p = t(ind_same_xval,i);
+				ind_in_p = t(ind_same_xval,i);
 
-			% Compare with saved indices to see check if point has already been
-			% considered.
+				% Compare with saved indices to see check if point has already been
+				% considered.
 
-			if ~isempty(ind_saved) && any(any((ind_in_p == repmat(ind_saved,length(ind_in_p),1))'))
+				if ~isempty(ind_saved) && any(any((ind_in_p == repmat(ind_saved,length(ind_in_p),1))'))
 
-				% Removes an index if it has already been counted.
+					% Removes an index if it has already been counted.
 
-				ind_in_p = ind_in_p(not(any((ind_in_p == repmat(ind_saved,length(ind_in_p),1))')));
+					ind_in_p = ind_in_p(not(any((ind_in_p == repmat(ind_saved,length(ind_in_p),1))')));
+
+				end
+
+				% Check whether the exclusion of duplicate indices empties the
+				% variable. If true, skip iteration.
+
+				if isempty(ind_in_p)
+
+					continue
+
+				end
+
+				% Save the indices to not count them multiple times.
+
+				ind_saved(length(ind_saved)+1:length(ind_saved)+length(ind_in_p)) = ind_in_p;
+
+				% Corresponding y values on current edge.
+
+				val_y_cur = p(2,ind_in_p);
+
+				% y values of all points on the opposite side along their
+				% indices in p. [y_value index_in_p].
+
+				val_y_op = [p(2,t(1:3,ind_opposite)) ; reshape(t(1:3,ind_opposite),[1 numel(t(1:3,ind_opposite))])]';
+
+				% Comparing y values and finding the indices of the minimum
+				% values.
+
+				[~,ind_min_op] = min(abs(val_y_cur - val_y_op(:,1)));
+
+				% The indices in 'p' where these minimum values are located.
+				% (The points on the opposite edge which are closest in height
+				% to the selected ones on the current edge).
+
 
 			end
 
-			% Check whether the exclusion of duplicate indices empties the
-			% variable. If true, skip iteration.
+			if exist('disppct.m','file') == 2 && exist('dispstat.m','file') == 2
 
-			if isempty(ind_in_p)
+				pct = disppct(i,n_tri,pct,i_for,n_for);
 
-				continue
+			else
+
+				i/n_tri*100
 
 			end
 
-			% Save the indices to not count them multiple times.
-
-			ind_saved(length(ind_saved)+1:length(ind_saved)+length(ind_in_p)) = ind_in_p;
-
-			% Corresponding y values on current edge.
-
-			val_y_cur = p(2,ind_in_p);
-
-			% y values of all points on the opposite side along their
-			% indices in p. [y_value index_in_p].
-
-			val_y_op = [p(2,t(1:3,ind_opposite)) ; reshape(t(1:3,ind_opposite),[1 numel(t(1:3,ind_opposite))])]';
-
-			% Comparing y values and finding the indices of the minimum
-			% values.
-
-			[~,ind_min_op] = min(abs(val_y_cur - val_y_op(:,1)));
-
-			% The indices in 'p' where these minimum values are located.
-			% (The points on the opposite edge which are closest in height
-			% to the selected ones on the current edge).
-
-
 		end
-
-		if exist('disppct.m','file') == 2 && exist('dispstat.m','file') == 2
-
-			pct = disppct(i,n_tri,pct,2*k,2*var_len);
-
-		else
-
-			i/n_tri*100
-
-		end
-
+		
 	end
 
 	% Hv = lsqminnorm(M,bv);
@@ -480,9 +497,9 @@ for k = 1:var_len
 	
 	angle_peri = linspace(0,2*pi,10000);
 	
-	line_x = cos(angle_peri) .* r_circ ./ 30;
+	line_x = cos(angle_peri) * r_circ * (1 - 1/30);
 	
-	line_y = sin(angle_peri) .* r_circ ./ 30;
+	line_y = sin(angle_peri) * r_circ * (1 - 1/30);
 	
 	%{
 	line_x = linspace(0,0,500);
@@ -493,7 +510,7 @@ for k = 1:var_len
 	
 	fun_ang = cos(angle_peri) .* line_x + sin(angle_peri) .* line_y;
 
-	E0_line = exp(-1i * k0 * sqrt(diel_const) * fun_ang).';
+	E0_line = exp(1i * k0 * sqrt(diel_const) * fun_ang).'; % fun_ang <=> line_x
 
 	int_F = pdeInterpolant(p,t,Hv);
 
@@ -509,8 +526,11 @@ for k = 1:var_len
 % 	plot(line_y,line_abs)
 
 	% axis([-tot_height tot_height -1.5 1.5])
+	scat_cross(k) = curve_area;
+	
+end
 
-
+%{
 	%% Calculating transmittance and reflectance etc.
 
 	val_y_t = evaluate(int_F,[0 ; -tot_height/2]);
@@ -540,7 +560,8 @@ for k = 1:var_len
 	scat_cross(k) = curve_area;
 	
 end
-asd
+%}
+%{
 %% Writing to file
 
 if logical(exist('var_array','var'))
@@ -568,7 +589,7 @@ csvv = [lambda,n2,2*(max(cyl_cent_y) + cyl_period/2),refl,val_y_t];
 %}
 
 dispstat('Finished.','keepprev','timestamp');
-
+%}
 %% Indices of Triangles on Edges
 
 function edge_index = edge_ind(pet,x_or_y,num)
