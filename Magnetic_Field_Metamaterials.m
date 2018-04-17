@@ -51,21 +51,21 @@ for k = 1:var_len
 
 	%% Parameters
 	
-	main_structure = 'circle'; % 'circle' or 'rectangle'.
+	main_structure = 'rectangle'; % 'circle' or 'rectangle'.
 
 	lambda = 700;
 	
-	theta = 0;
+	theta = (3/2)*pi;
 	
 	% Determines maximum size of elements. Therefore larger values of hmax
 	% creates fewer elements. 
-	hmax = 4;
+	hmax = 5;
 	
 	if strcmp(main_structure,'circle')
 		
 		hmax = hmax * 10;
 		
-		r_circ = 3000;	% Radius of main scattering structure or of smaller cylinders.
+		r_circ = 2500;	% Radius of main scattering structure or of smaller cylinders.
 		
 	elseif strcmp(main_structure,'rectangle')
 		
@@ -73,6 +73,7 @@ for k = 1:var_len
 		
 		rows_cyl = 11;
 		cyl_period = 30;
+		r_cyl = 10;
 		
 		ul_spacing = 1400;
 		area_width = 2*cyl_period;
@@ -148,35 +149,31 @@ for k = 1:var_len
 		
 			obj_csg.create_csg('rectangle',area_width,tot_height);
 			obj_csg.sf = 'rect';
+			
+			% Cylinders
+
+			for i = 1:length(obj_cent.cent_y)
+
+	% 			a.create_csg('rectangle',area_width,[r_cyl , cent_cyl(2,i)]);
+
+				obj_csg.create_csg('circle',[obj_cent.cent_x(i) ; obj_cent.cent_y(i)],r_cyl);
+
+			end
 		
 		elseif strcmp(main_structure,'circle')
 		
 			obj_csg.create_csg('circle',[0 0],r_circ);
 			obj_csg.sf = 'circ';
-			
-% 			tot_height = r_circ;
+
+			radius = 50;
+
+			obj_csg.create_csg('circle',[0 , 0],radius);
+
+			obj_csg.create_csg('circle',[0 , 0],radius * (1 + 1/4));
+
+			obj_csg.create_csg('circle',[0 , 0],r_circ * (1 - 1/30));
 			
 		end
-		
-		radius = 200;
-		
-% 		obj_csg.create_csg('rectangle',20,5);
-
-		obj_csg.create_csg('circle',[0 , 0],radius);
-		
-		obj_csg.create_csg('circle',[0 , 0],radius * (1 + 1/4));
-		
-		obj_csg.create_csg('circle',[0 , 0],r_circ * (1 - 1/30));
-
-		% Cylinders
-
-% 		for i = 1:length(obj_cent.cent_y)
-% 			
-% % 			a.create_csg('rectangle',area_width,[r_cyl , cent_cyl(2,i)]);
-% 
-% 			obj_csg.create_csg('circle',[obj_cent.cent_x(i) ; obj_cent.cent_y(i)],r_cyl);
-% 
-% 		end
 
 
 		%% Create Model, Geometry & Mesh
@@ -197,9 +194,13 @@ for k = 1:var_len
 
 		[p,e,t] = meshToPet(mesh);
 		
-		[p,e,t] = refinemesh(dl,p,e,t,[2 3 4]);
-		
-		[p,e,t] = refinemesh(dl,p,e,t,[2 3 4]);
+% 		[p,e,t] = refinemesh(dl,p,e,t,[2 3 4]);
+% 		
+% 		[p,e,t] = refinemesh(dl,p,e,t,[2 3 4]);
+% 		
+% 		[p,e,t] = refinemesh(dl,p,e,t,[2 3 4]);
+% 		
+% 		[p,e,t] = refinemesh(dl,p,e,t,[2 3 4]);
 		
 % 		pdemesh(p,e,t)
 		
@@ -253,6 +254,8 @@ for k = 1:var_len
 
 	
 	%% Calculations
+	
+	length(t)
 
 	i_for = i_for + 1;
 	
@@ -260,7 +263,7 @@ for k = 1:var_len
 
 		zone = t(end,i);
 		
-		if any(zone == [1 2 3]) %any(zone == zone_main)
+		if any(zone == zone_main)
 
 			diel_const = di_const1;
 
@@ -298,12 +301,12 @@ for k = 1:var_len
 
 		A = area_tri_k * [d11 d12 d13 ; d21 d22 d23 ; d31 d32 d33];
 
-		Mk = k0^2 * B * area_tri_k - A/diel_const;
+		Mk = k0^2 * B * area_tri_k * diel_const - A;
 
 
 		%% Triangles with a side touching top or bottom edge
 
-		if exist('ind_top_edge','var') && (any(i == ind_top_edge) || any(i == ind_bot_edge))
+		if strcmp(main_structure,'rectangle') && (any(i == ind_top_edge) || any(i == ind_bot_edge))
 
 			% Find which two indices have the same y value.
 
@@ -342,8 +345,8 @@ for k = 1:var_len
 		
 		%% Circle geometry
 		
-		if exist('ind_peri_edge','var') && any(i == ind_peri_edge)
-
+		if strcmp(main_structure,'circle') && any(i == ind_peri_edge)
+			
 			% Find which two indices are on the periphery.
 			
 			% Overall length is found.
@@ -375,8 +378,12 @@ for k = 1:var_len
 			E0 = exp(1i * k0 * sqrt(diel_const) * fun_ang);
 
 			bk = ((1 - fun_ang/r_circ) * 1i * k0 * sqrt(diel_const) - 1/(2 * r_circ)) .* E0 * edge_length/(2 * diel_const);
+			
+			bk = [2 * bk(1) + bk(2) , bk(1) + 2 * bk(2)]/3;
+			
+			ind_val1{i} = [t(ind_peri,i) , bk.'];
 
-			bv(t(ind_peri,i)) = bv(t(ind_peri,i)) + bk.'; %<-- Husk vinkelafhængig.
+			bv(t(ind_peri,i)) = bv(t(ind_peri,i)) + bk.';	%<-- Husk vinkelafhængig.
 
 			temp_mat = zeros(3);
 			temp_mat(ind_peri,ind_peri) = [2 1 ; 1 2];
@@ -386,6 +393,8 @@ for k = 1:var_len
 			Mk = Mk + C;
 
 		end
+		
+		ind_val2{i} = [t(1:3,i) , Mk];
 
 		M(t(1:3,i),t(1:3,i)) = M(t(1:3,i),t(1:3,i)) + Mk;
 
@@ -404,7 +413,7 @@ for k = 1:var_len
 
 	%% Periodic boundary conditions
 
-	if exist('ind_left_edge','var')
+	if strcmp(main_structure,'rectangle')
 		
 		i_for = i_for + 1;
 		
@@ -481,25 +490,23 @@ for k = 1:var_len
 		
 	end
 
-	% Hv = lsqminnorm(M,bv);
-
 	Hv = M\bv;
 
-% 	pdeplot(p,e,t,'xydata',abs(Hv))%,'Zdata',abs(Hv))
-% 	colormap gray %parula
-% 	hold on
-% 	pdegplot(dl)
-% 	axis equal
+	pdeplot(p,e,t,'xydata',abs(Hv))%,'Zdata',abs(Hv))
+	colormap gray %parula
+	hold on
+	pdegplot(dl)
+	axis equal
 % 	caxis([0 1.5])
 
-	
+	asd
 	%% Plotting values of line down through structure
 	
 	angle_peri = linspace(0,2*pi,10000);
 	
-	line_x = cos(angle_peri) * r_circ * (1 - 1/30);
+	line_x = cos(angle_peri) * (r_circ - 1);
 	
-	line_y = sin(angle_peri) * r_circ * (1 - 1/30);
+	line_y = sin(angle_peri) * (r_circ - 1);
 	
 	%{
 	line_x = linspace(0,0,500);
@@ -508,9 +515,9 @@ for k = 1:var_len
 	%}
 	% Interpolant
 	
-	fun_ang = cos(angle_peri) .* line_x + sin(angle_peri) .* line_y;
+	fun_ang = cos(theta) .* line_x + sin(theta) .* line_y;
 
-	E0_line = exp(1i * k0 * sqrt(diel_const) * fun_ang).'; % fun_ang <=> line_x
+	E0_line = exp(1i * k0 * sqrt(1) * line_x).'; % fun_ang <=> line_x
 
 	int_F = pdeInterpolant(p,t,Hv);
 
@@ -525,7 +532,7 @@ for k = 1:var_len
 	
 % 	plot(line_y,line_abs)
 
-	% axis([-tot_height tot_height -1.5 1.5])
+% 	axis([-tot_height tot_height -1.5 1.5])
 	scat_cross(k) = curve_area;
 	
 end
