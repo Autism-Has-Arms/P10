@@ -65,7 +65,7 @@ for k = 1:var_len
 		
 		hmax = hmax * 10;
 		
-		r_circ = 3000;	% Radius of main scattering structure or of smaller cylinders.
+		r_circ = 1500;	% Radius of main scattering structure or of smaller cylinders.
 		
 	elseif strcmp(main_structure,'rectangle')
 		
@@ -158,7 +158,7 @@ for k = 1:var_len
 			
 		end
 		
-		radius = 200;
+		radius = 50;
 		
 % 		obj_csg.create_csg('rectangle',20,5);
 
@@ -196,6 +196,10 @@ for k = 1:var_len
 		%% Triangle Manipulation
 
 		[p,e,t] = meshToPet(mesh);
+		
+		[p,e,t] = refinemesh(dl,p,e,t,[2 3 4]);
+		
+		[p,e,t] = refinemesh(dl,p,e,t,[2 3 4]);
 		
 		[p,e,t] = refinemesh(dl,p,e,t,[2 3 4]);
 		
@@ -253,6 +257,8 @@ for k = 1:var_len
 
 	
 	%% Calculations
+	
+	length(t)
 
 	i_for = i_for + 1;
 	
@@ -376,7 +382,7 @@ for k = 1:var_len
 
 			bk = ((1 - fun_ang/r_circ) * 1i * k0 * sqrt(diel_const) - 1/(2 * r_circ)) .* E0 * edge_length/(2 * diel_const);
 
-			bv(t(ind_peri,i)) = bv(t(ind_peri,i)) + bk.'; %<-- Husk vinkelafhængig.
+			bv(t(ind_peri,i)) = bv(t(ind_peri,i)) + bk.';	%<-- Husk vinkelafhængig.
 
 			temp_mat = zeros(3);
 			temp_mat(ind_peri,ind_peri) = [2 1 ; 1 2];
