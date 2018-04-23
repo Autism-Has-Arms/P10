@@ -55,7 +55,7 @@ for k = 1:var_len
 
 	lambda = 700;
 	
-	theta = (3/2)*pi;
+	theta = (6/4)*pi;
 	
 	% Determines maximum size of elements. Therefore larger values of hmax
 	% creates fewer elements. 
@@ -68,8 +68,6 @@ for k = 1:var_len
 		r_circ = 2500;	% Radius of main scattering structure or of smaller cylinders.
 		
 	elseif strcmp(main_structure,'rectangle')
-		
-		hmax = hmax;
 		
 		rows_cyl = 11;
 		cyl_period = 30;
@@ -301,7 +299,7 @@ for k = 1:var_len
 
 		A = area_tri_k * [d11 d12 d13 ; d21 d22 d23 ; d31 d32 d33];
 
-		Mk = k0^2 * B * area_tri_k * diel_const - A;
+		Mk = k0^2 * B * area_tri_k - A/sqrt(diel_const);
 
 
 		%% Triangles with a side touching top or bottom edge
@@ -321,11 +319,15 @@ for k = 1:var_len
 
 				% The y value is found by using the first index.
 
+				x_val = xy_val(1,find(ind_same_yval,1));
 				y_val = xy_val(2,find(ind_same_yval,1));
 				
 % 				fun_ang = cos(theta) * xy_val(1,ind_same_yval) + sin(theta) * xy_val(2,ind_same_yval);
 				
-				H0 = exp(-1i * k0 * sqrt(diel_const) * y_val);
+				k_x = k0 * diel_const.^2 * sin(theta);
+				k_y = k0 * diel_const.^2 * cos(theta);
+
+				H0 = exp(-1i * k_y * y_val) * exp(1i * k_x * x_val);
 
 				bk = 1i * k0 * diel_const * H0 * edge_length;
 
@@ -380,8 +382,6 @@ for k = 1:var_len
 			bk = ((1 - fun_ang/r_circ) * 1i * k0 * sqrt(diel_const) - 1/(2 * r_circ)) .* E0 * edge_length/(2 * diel_const);
 			
 			bk = [2 * bk(1) + bk(2) , bk(1) + 2 * bk(2)]/3;
-			
-			ind_val1{i} = [t(ind_peri,i) , bk.'];
 
 			bv(t(ind_peri,i)) = bv(t(ind_peri,i)) + bk.';	%<-- Husk vinkelafhængig.
 
@@ -393,8 +393,6 @@ for k = 1:var_len
 			Mk = Mk + C;
 
 		end
-		
-		ind_val2{i} = [t(1:3,i) , Mk];
 
 		M(t(1:3,i),t(1:3,i)) = M(t(1:3,i),t(1:3,i)) + Mk;
 
@@ -472,6 +470,20 @@ for k = 1:var_len
 				% The indices in 'p' where these minimum values are located.
 				% (The points on the opposite edge which are closest in height
 				% to the selected ones on the current edge).
+				
+				ind_p_close = val_y_op(ind_min_op,2);
+				
+				k_x = k0 * diel_const.^2 * sin(theta);
+ 
+				% Setting a row to zero.
+
+				M(ind_in_p,:) = 0;
+
+				M(sub2ind(size(M),ind_in_p,ind_in_p)) = 1;
+				
+				M(sub2ind(size(M),ind_in_p,ind_p_close)) = -exp(1i*k_x*area_width);
+
+				bv(ind_in_p) = 0;
 
 
 			end
