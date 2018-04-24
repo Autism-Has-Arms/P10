@@ -55,11 +55,11 @@ for k = 1:var_len
 
 	lambda = 700;
 	
-	theta = (6/4)*pi;
+	theta = 0*(2/4)*pi;
 	
 	% Determines maximum size of elements. Therefore larger values of hmax
-	% creates fewer elements. 
-	hmax = 5;
+	% creates fewer elements.
+	hmax = 3;
 	
 	if strcmp(main_structure,'circle')
 		
@@ -71,10 +71,10 @@ for k = 1:var_len
 		
 		rows_cyl = 11;
 		cyl_period = 30;
-		r_cyl = 10;
+		r_cyl = 14;
 		
 		ul_spacing = 1400;
-		area_width = 2*cyl_period;
+		area_width = 4*cyl_period;
 		
 		cyl_pattern = 'hexagonal'; % ['line','hexagonal'].
 
@@ -253,7 +253,7 @@ for k = 1:var_len
 	
 	%% Calculations
 	
-	length(t)
+	disp(['Triangle amount = ',num2str(length(t))])
 
 	i_for = i_for + 1;
 	
@@ -270,6 +270,8 @@ for k = 1:var_len
 			diel_const = di_const2;
 
 		end
+		
+		ref_ind = sqrt(diel_const);
 
 		xy_val = p(:,t(1:3,i));
 
@@ -315,25 +317,27 @@ for k = 1:var_len
 
 			edge_length = abs(diff(xy_val(1,ind_same_yval)));
 
+			% The x and y values are found.
+
+			x_val = xy_val(1,ind_same_yval);
+			y_val = xy_val(2,ind_same_yval);
+
+			k_x = k0 * ref_ind * cos(theta);
+			k_y = k0 * ref_ind * sin(theta);
+			
+			H0 = exp(-1i * k_y * y_val) .* exp(1i * k_x * x_val);
+			
 			if any(i == ind_top_edge)
 
-				% The y value is found by using the first index.
+				bk = 1i * k0 * ref_ind * H0 * (sin(theta) - 1) * edge_length/2;
 
-				x_val = xy_val(1,find(ind_same_yval,1));
-				y_val = xy_val(2,find(ind_same_yval,1));
-				
-% 				fun_ang = cos(theta) * xy_val(1,ind_same_yval) + sin(theta) * xy_val(2,ind_same_yval);
-				
-				k_x = k0 * diel_const.^2 * sin(theta);
-				k_y = k0 * diel_const.^2 * cos(theta);
+			elseif any(i == ind_bot_edge)
 
-				H0 = exp(-1i * k_y * y_val) * exp(1i * k_x * x_val);
-
-				bk = 1i * k0 * diel_const * H0 * edge_length;
-
-				bv(t(ind_same_yval,i)) = bv(t(ind_same_yval,i)) + bk.'; %<-- Husk vinkelafhængig.
+				bk = 1i * k0 * ref_ind * H0 * (sin(theta) + 1) * edge_length/2;
 
 			end
+			
+			bv(t(ind_same_yval,i)) = bv(t(ind_same_yval,i)) + bk.'; %<-- Husk vinkelafhængig.
 
 			temp_mat = zeros(3);
 			temp_mat(ind_same_yval,ind_same_yval) = [2 1 ; 1 2];
@@ -633,7 +637,7 @@ function edge_index = edge_ind(pet,x_or_y,num)
 			
 		otherwise
 			
-			error("2nd input must be 'x' or 'y'.")
+			error("2nd input must be 'x', 'y' or 'r'.")
 			
 	end
 	
@@ -643,7 +647,7 @@ function edge_index = edge_ind(pet,x_or_y,num)
 	
 	% All the edges with the given edge ID.
 	
-	apt_edges = logical(sum(e(5,:) == edge_id'));
+	apt_edges = logical(sum(e(5,:) == edge_id',1));
 	
 	% Get the indices in 'p' of the 2 points which make up the edges.
 	
