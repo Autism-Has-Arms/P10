@@ -51,27 +51,29 @@ for k = 1:var_len
 
 	%% Parameters
 	
-	main_structure = 'rectangle'; % 'circle' or 'rectangle'.
+	main_structure = 'circle'; % 'circle' or 'rectangle'.
 
 	lambda = 700;
 	
-	theta = 0*(2/4)*pi;
+	theta = 0;
 	
 	% Determines maximum size of elements. Therefore larger values of hmax
 	% creates fewer elements.
-	hmax = 3;
+	hmax = 4;
 	
 	if strcmp(main_structure,'circle')
 		
 		hmax = hmax * 10;
 		
-		r_circ = 2500;	% Radius of main scattering structure or of smaller cylinders.
+		r_circ = 5000;	% Radius of area.
+		
+		r_scat = 50;	% Radius of scatterer.
 		
 	elseif strcmp(main_structure,'rectangle')
 		
 		rows_cyl = 11;
 		cyl_period = 30;
-		r_cyl = 14;
+		r_cyl = 7;
 		
 		ul_spacing = 1400;
 		area_width = 4*cyl_period;
@@ -163,11 +165,9 @@ for k = 1:var_len
 			obj_csg.create_csg('circle',[0 0],r_circ);
 			obj_csg.sf = 'circ';
 
-			radius = 50;
+			obj_csg.create_csg('circle',[0 , 0],r_scat);
 
-			obj_csg.create_csg('circle',[0 , 0],radius);
-
-			obj_csg.create_csg('circle',[0 , 0],radius * (1 + 1/4));
+			obj_csg.create_csg('circle',[0 , 0],r_scat * (1 + 1/4));
 
 			obj_csg.create_csg('circle',[0 , 0],r_circ * (1 - 1/30));
 			
@@ -180,27 +180,35 @@ for k = 1:var_len
 
 % 		pdegplot(dl,'EdgeLabels','on','FaceLabels','on')
 % 		axis equal
+% 		asd
 
 		model = createpde(1);
 
 		model.geometryFromEdges(dl);
 
-		mesh = generateMesh(model,'Hmax',hmax,'GeometricOrder','linear');
+		mesh = generateMesh(model,'Hmax',hmax,'GeometricOrder','quadratic');
 		
 
 		%% Triangle Manipulation
 
 		[p,e,t] = meshToPet(mesh);
 		
-% 		[p,e,t] = refinemesh(dl,p,e,t,[2 3 4]);
-% 		
-% 		[p,e,t] = refinemesh(dl,p,e,t,[2 3 4]);
-% 		
-% 		[p,e,t] = refinemesh(dl,p,e,t,[2 3 4]);
-% 		
-% 		[p,e,t] = refinemesh(dl,p,e,t,[2 3 4]);
+		pdemesh(p,e,t)
 		
-% 		pdemesh(p,e,t)
+		[p,e,t] = MidPointFix({p,e,t});
+		
+		figure(2)
+		
+		pdemesh(p,e,t)
+		
+		asd
+% 		[p,e,t] = refinemesh(dl,p,e,t,[2 3 4]);
+% 		
+% 		[p,e,t] = refinemesh(dl,p,e,t,[2 3 4]);
+% 		
+% 		[p,e,t] = refinemesh(dl,p,e,t,[2 3 4]);
+% 		
+% 		[p,e,t] = refinemesh(dl,p,e,t,[2 3 4]);
 		
 		n_tri = size(t,2);
 
@@ -239,7 +247,7 @@ for k = 1:var_len
 	
 	zone_majority_ind = histc([dl(6,:) , dl(7,:)],unique_zones) == zone_max;
 	
-	zone_main = unique_zones(zone_majority_ind);
+	zone_main = [1 2];%unique_zones(zone_majority_ind);
 	
 	
 	%% Pre-calculation initialisations
@@ -327,14 +335,16 @@ for k = 1:var_len
 			
 			H0 = exp(-1i * k_y * y_val) .* exp(1i * k_x * x_val);
 			
-			if any(i == ind_top_edge)
+			if (pi < theta && theta < 2*pi) && any(i == ind_top_edge)
 
-				bk = 1i * k0 * ref_ind * H0 * (sin(theta) - 1) * edge_length/2;
+				bk = 1i * k_y * ref_ind * H0 * edge_length;
+				
+			end
+			
+			if  (0 < theta && theta < pi) && any(i == ind_bot_edge)
 
-			elseif any(i == ind_bot_edge)
-
-				bk = 1i * k0 * ref_ind * H0 * (sin(theta) + 1) * edge_length/2;
-
+				bk = 1i * k_y * ref_ind * H0 * edge_length;
+				
 			end
 			
 			bv(t(ind_same_yval,i)) = bv(t(ind_same_yval,i)) + bk.'; %<-- Husk vinkelafhængig.
@@ -667,3 +677,27 @@ function edge_index = edge_ind(pet,x_or_y,num)
 	
 end
 
+function [p,e,t] = MidPointFix(pet)
+
+	[p,e,t] = pet{:};
+	
+	% The two edge points and the point in-between.
+	
+	edge_points = [1 2 4 ; 2 3 5 ; 3 1 6];
+	
+	for i = 1:size(edge_points,1)
+	
+		point_val_x = reshape(p(1,t(edge_points(i,:),:).'),[],3);
+		point_val_y = reshape(p(2,t(edge_points(i,:),:).'),[],3);
+		
+		% Intermediate values
+		
+		int_val_x = (point_val_x(:,2) - point_val_x(:,1))/2 + point_val_x(:,1);
+		int_val_y = (point_val_y(:,2) - point_val_y(:,1))/2 + point_val_y(:,1);
+		
+		p(1,t(edge_points(i,3),diff([point_val_x(:,3),int_val_x].') ~= 0)) = int_val_x(diff([point_val_x(:,3),int_val_x].') ~= 0);
+		p(2,t(edge_points(i,3),diff([point_val_y(:,3),int_val_y].') ~= 0)) = int_val_y(diff([point_val_y(:,3),int_val_y].') ~= 0);
+		
+	end
+
+end
