@@ -63,19 +63,19 @@ for k = 1:var_len
 	
 	% Determines maximum size of elements. Therefore larger values of hmax
 	% creates fewer elements.
-	hmax = 6;
+	hmax = 2;
 	
 	if strcmp(main_structure,'circle')
 		
 		hmax = hmax * 10;
 		
-		r_circ = 5000;	% Radius of area.
+		r_circ = 1500;	% Radius of area.
 		
-		r_scat = 50;	% Radius of scatterer.
+		r_scat = 10;	% Radius of scatterer.
 		
 		if PML
 			
-			r_PML = 1000; % Distanace from r_circ.
+			r_PML = 800; % Distanace from r_circ.
 			
 		end
 		
@@ -108,7 +108,7 @@ for k = 1:var_len
 	% Minor calculations
 	
 	n1 = 1;
-	n2 = interp1(r_i(:,1),r_i(:,2)+r_i(:,3)*1i,lambda);
+	n2 = sqrt(12);%interp1(r_i(:,1),r_i(:,2)+r_i(:,3)*1i,lambda);
 	di_const1 = n1^2;
 	di_const2 = n2^2;
 	
@@ -214,14 +214,19 @@ for k = 1:var_len
 		
 % 		[p,e,t] = MidPointFix({p,e,t});
 		
-% 		[p,e,t] = refinemesh(dl,p,e,t,[2 3 4]);
-% 		
-% 		[p,e,t] = refinemesh(dl,p,e,t,[2 3 4]);
-% 		
-% 		[p,e,t] = refinemesh(dl,p,e,t,[2 3 4]);
-% 		
-% 		[p,e,t] = refinemesh(dl,p,e,t,[2 3 4]);
+		[p,e,t] = refinemesh(dl,p,e,t,[3]);
 		
+		[p,e,t] = refinemesh(dl,p,e,t,[3]);
+		
+		[p,e,t] = refinemesh(dl,p,e,t,[3]);
+% 		
+% 		[p,e,t] = refinemesh(dl,p,e,t,[2 3 4]);
+% 		
+% 		[p,e,t] = refinemesh(dl,p,e,t,[2 3 4]);
+% 		
+% 		[p,e,t] = refinemesh(dl,p,e,t,[2 3 4]);
+% 		pdemesh(p,e,t)
+% 		asd
 		n_tri = size(t,2);
 
 		B = [2 1 1 ; 1 2 1 ; 1 1 2]/12;
@@ -349,7 +354,7 @@ for k = 1:var_len
 			
 			r_0 = r_circ;
 			
-			sigma_0 = 4*log(10)/(k0*(r_PML.^2)*(diel_const.^2));
+			sigma_0 = 6*log(10)/(2*pi/lambda*r_PML^3);%4*log(10)/(k0*(r_PML.^2)*(diel_const.^2));
 
 			if t(end,i) == zone_PML
 			
@@ -365,7 +370,7 @@ for k = 1:var_len
 			
 			fun_ang = cos(theta) * x_mid_tri + sin(theta) * y_mid_tri;
 
-			E0 = exp(1i * k0 * sqrt(diel_const) * fun_ang);
+			E0 = exp(1i * k0 * fun_ang);
 
 			bk = - k0.^2 * (diel_const - di_const1) * E0 * 2 * area_tri_k / 6;
 			
@@ -373,7 +378,7 @@ for k = 1:var_len
 
 		end
 
-		Mk = k0^2 * B * area_tri_k - A/sqrt(diel_const);
+		Mk = k0^2 * B * area_tri_k * diel_const - A;
 
 
 		%% Triangles with a side touching top or bottom edge
@@ -660,7 +665,7 @@ for k = 1:var_len
 
 				ind_saved(length(ind_saved)+1:length(ind_saved)+length(ind_in_p)) = ind_in_p;
 				
-				bv(ind_in_p) = 0;
+% 				bv(ind_in_p) = 0;
 				
 				M(ind_in_p,:) = 0;
 				M(sub2ind(size(M),ind_in_p,ind_in_p)) = 1;
@@ -672,6 +677,12 @@ for k = 1:var_len
 	end
 
 	Hv = M\bv;
+	
+	H0vxy = cos(theta) * p(1,:) + sin(theta) * p(2,:);
+	
+	H0v = exp(1i*k0*H0vxy).';
+	
+	Hv = Hv + H0v;
 
 	pdeplot(p,e,t,'xydata',abs(Hv))%,'Zdata',abs(Hv))
 	colormap gray %parula
@@ -680,14 +691,14 @@ for k = 1:var_len
 	axis equal
 % 	caxis([0 1.5])
 
-	asd
+% 	asd
 	%% Plotting values of line down through structure
 	
 	angle_peri = linspace(0,2*pi,10000);
 	
-	line_x = cos(angle_peri) * (r_circ - 1);
+	line_x = cos(angle_peri) * (r_circ - 100);
 	
-	line_y = sin(angle_peri) * (r_circ - 1);
+	line_y = sin(angle_peri) * (r_circ - 100);
 	
 	%{
 	line_x = linspace(0,0,500);
@@ -702,15 +713,19 @@ for k = 1:var_len
 
 	int_F = pdeInterpolant(p,t,Hv);
 
-	line_abs = abs(evaluate(int_F,[line_x;line_y]) - E0_line).^2;
+% 	line_abs = abs(evaluate(int_F,[line_x;line_y]) - E0_line).^2;
+	
+	line_abs = (abs(evaluate(int_F,[line_x;line_y])).^2)*(r_circ - 100);
+	
+	line_abs = line_abs / max(line_abs);
 	
 	curve_area = trapz(angle_peri,line_abs/r_circ);
 	
-% 	figure(2)
+	figure(2)
 
 % 	scatter3(cos(angle_peri)*r_circ,sin(angle_peri)*r_circ,line_abs,1,line_abs)
-% 	plot(angle_peri,line_abs)
-	
+	plot(angle_peri,line_abs)
+	asd
 % 	plot(line_y,line_abs)
 
 % 	axis([-tot_height tot_height -1.5 1.5])
