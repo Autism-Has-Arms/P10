@@ -52,6 +52,10 @@ for k = 1:var_len
 	%% Parameters
 	
 	main_structure = 'circle'; % 'circle' or 'rectangle'.
+	
+	PML = true; % Include Perfectly-Matched Layer.
+	
+	geometric_order = 'linear'; % 'linear' or 'quadratic'.
 
 	lambda = 700;
 	
@@ -59,7 +63,7 @@ for k = 1:var_len
 	
 	% Determines maximum size of elements. Therefore larger values of hmax
 	% creates fewer elements.
-	hmax = 4;
+	hmax = 6;
 	
 	if strcmp(main_structure,'circle')
 		
@@ -68,6 +72,12 @@ for k = 1:var_len
 		r_circ = 5000;	% Radius of area.
 		
 		r_scat = 50;	% Radius of scatterer.
+		
+		if PML
+			
+			r_PML = 1000; % Distanace from r_circ.
+			
+		end
 		
 	elseif strcmp(main_structure,'rectangle')
 		
@@ -161,15 +171,22 @@ for k = 1:var_len
 			end
 		
 		elseif strcmp(main_structure,'circle')
+			
+			if PML
 		
-			obj_csg.create_csg('circle',[0 0],r_circ);
+				obj_csg.create_csg('circle',[0 0],r_circ + r_PML);
+				
+			end
+			
 			obj_csg.sf = 'circ';
+			
+			obj_csg.create_csg('circle',[0 0],r_circ);
 
 			obj_csg.create_csg('circle',[0 , 0],r_scat);
 
-			obj_csg.create_csg('circle',[0 , 0],r_scat * (1 + 1/4));
+% 			obj_csg.create_csg('circle',[0 , 0],r_scat * (1 + 1/4));
 
-			obj_csg.create_csg('circle',[0 , 0],r_circ * (1 - 1/30));
+% 			obj_csg.create_csg('circle',[0 , 0],r_circ * (1 - 1/30));
 			
 		end
 
@@ -186,22 +203,17 @@ for k = 1:var_len
 
 		model.geometryFromEdges(dl);
 
-		mesh = generateMesh(model,'Hmax',hmax,'GeometricOrder','quadratic');
+		mesh = generateMesh(model,'Hmax',hmax,'GeometricOrder',geometric_order);
 		
 
 		%% Triangle Manipulation
 
 		[p,e,t] = meshToPet(mesh);
 		
-		pdemesh(p,e,t)
+% 		pdemesh(p,e,t)
 		
-		[p,e,t] = MidPointFix({p,e,t});
+% 		[p,e,t] = MidPointFix({p,e,t});
 		
-		figure(2)
-		
-		pdemesh(p,e,t)
-		
-		asd
 % 		[p,e,t] = refinemesh(dl,p,e,t,[2 3 4]);
 % 		
 % 		[p,e,t] = refinemesh(dl,p,e,t,[2 3 4]);
@@ -228,9 +240,19 @@ for k = 1:var_len
 			
 		elseif strcmp(main_structure,'circle')
 			
-			ind_peri_edge = edge_ind({p,e,t},'r',r_circ);
+			if PML
+				
+				ind_PML = edge_ind({p,e,t},'r',r_circ + r_PML);
+				
+				n_for = var_len;
+				
+			else
 			
-			n_for = var_len;
+				ind_peri_edge = edge_ind({p,e,t},'r',r_circ);
+
+				n_for = var_len;
+			
+			end
 			
 		end
 		
@@ -249,12 +271,12 @@ for k = 1:var_len
 	
 	zone_main = [1 2];%unique_zones(zone_majority_ind);
 	
+	zone_PML = 1;
+	
 	
 	%% Pre-calculation initialisations
 	
 	M = spalloc(size(p,2),size(p,2),3*length(p));
-	
-	ind_saved = [];
 
 	bv = zeros(length(p),1);
 
@@ -280,8 +302,16 @@ for k = 1:var_len
 		end
 		
 		ref_ind = sqrt(diel_const);
+		
+		if strcmp(mesh.GeometricOrder,'linear')
 
-		xy_val = p(:,t(1:3,i));
+			xy_val = p(:,t(1:3,i));
+			
+		else
+			
+			xy_val = p(:,t(1:6,i));
+			
+		end
 
 		x1 = xy_val(1,1);
 		x2 = xy_val(1,2);
@@ -306,8 +336,42 @@ for k = 1:var_len
 		d31 = (+0 * du_dx + 1 * dv_dx) * (-1 * du_dx - 1 * dv_dx) + (+0 * du_dy + 1 * dv_dy) * (-1 * du_dy - 1 * dv_dy);
 		d32 = (+0 * du_dx + 1 * dv_dx) * (+1 * du_dx + 0 * dv_dx) + (+0 * du_dy + 1 * dv_dy) * (+1 * du_dy + 0 * dv_dy);
 		d33 = (+0 * du_dx + 1 * dv_dx) * (+0 * du_dx + 1 * dv_dx) + (+0 * du_dy + 1 * dv_dy) * (+0 * du_dy + 1 * dv_dy);
-
+		
 		A = area_tri_k * [d11 d12 d13 ; d21 d22 d23 ; d31 d32 d33];
+		
+		if PML
+		
+			% x and y coordinates of middle of triangle.
+			x_mid_tri = ((max(xy_val(1,:)) - min(xy_val(1,:)))/2) + min(xy_val(1,:));
+			y_mid_tri = ((max(xy_val(2,:)) - min(xy_val(2,:)))/2) + min(xy_val(2,:));
+			
+			r = sqrt(x_mid_tri.^2 + y_mid_tri.^2);
+			
+			r_0 = r_circ;
+			
+			sigma_0 = 4*log(10)/(k0*(r_PML.^2)*(diel_const.^2));
+
+			if t(end,i) == zone_PML
+			
+				sigma = sigma_0 * (r - r_0).^2;
+				
+			else
+				
+				sigma = 0;
+				
+			end
+
+			A = A / (1 + 1i * sigma).^2;
+			
+			fun_ang = cos(theta) * x_mid_tri + sin(theta) * y_mid_tri;
+
+			E0 = exp(1i * k0 * sqrt(diel_const) * fun_ang);
+
+			bk = - k0.^2 * (diel_const - di_const1) * E0 * 2 * area_tri_k / 6;
+			
+			bv(t(1:3,i)) = bv(t(1:3,i)) + bk.';
+
+		end
 
 		Mk = k0^2 * B * area_tri_k - A/sqrt(diel_const);
 
@@ -335,17 +399,17 @@ for k = 1:var_len
 			
 			H0 = exp(-1i * k_y * y_val) .* exp(1i * k_x * x_val);
 			
-			if (pi < theta && theta < 2*pi) && any(i == ind_top_edge)
+% 			if (pi < theta && theta <= 2*pi) && any(i == ind_top_edge)
 
 				bk = 1i * k_y * ref_ind * H0 * edge_length;
 				
-			end
+% 			end
 			
-			if  (0 < theta && theta < pi) && any(i == ind_bot_edge)
+% 			if  (0 <= theta && theta < pi) && any(i == ind_bot_edge)
 
-				bk = 1i * k_y * ref_ind * H0 * edge_length;
+% 				bk = 1i * k_y * ref_ind * H0 * edge_length;
 				
-			end
+% 			end
 			
 			bv(t(ind_same_yval,i)) = bv(t(ind_same_yval,i)) + bk.'; %<-- Husk vinkelafhængig.
 
@@ -361,7 +425,7 @@ for k = 1:var_len
 		
 		%% Circle geometry
 		
-		if strcmp(main_structure,'circle') && any(i == ind_peri_edge)
+		if strcmp(main_structure,'circle') && ~PML && any(i == ind_peri_edge)
 			
 			% Find which two indices are on the periphery.
 			
@@ -369,32 +433,53 @@ for k = 1:var_len
 			
 			ind_peri = sqrt(xy_val(1,:).^2 + xy_val(2,:).^2);
 			
+			% Corner-corner average length.
+			
+			cc_length = sqrt(diff(xy_val(1,[1 2 3 1])).^2 + diff(xy_val(2,[1 2 3 1])).^2);
+			cc_length = sum(cc_length)/length(cc_length);
+			
 			% Round result to 2 decimal places.
 			
-			ind_peri = round(ind_peri,2);
-			
+			ind_peri = abs(round(ind_peri,2) - r_circ) < cc_length/20;
+%{
 			% Extend arrays into matrices and compare the indices.
 			
-			ind_peri = repmat(ind_peri,3,1) == repmat(ind_peri,3,1).';
+% 			ind_peri = repmat(ind_peri,length(ind_peri),1) == repmat(ind_peri,length(ind_peri),1).';
 			
 			% Summarise the rows and subtract 1 to find the columns of the
 			% identical values. Values are converted to logicals values to
 			% enable indexing.
 			
-			ind_peri = logical(sum(ind_peri) - 1);
+% 			ind_peri = logical(sum(ind_peri) - 1);
 
-			% Length is calculated by using the norm.
+			if strcmp(mesh.GeometricOrder,'linear')
+				
+				ind_num = find(ind_peri);
 
-			edge_length = norm(diff(xy_val(:,ind_peri).').');
+				ind_corners = ind_num(ind_num <= 3);
+
+				ind_midpoint = ind_num(ind_num >= 4);
+				
+				edge_length = xy_val(:,ind_corners) - xy_val(:,ind_midpoint);
+				edge_length = sqrt(sum(edge_length.^2));
+				edge_length = edge_length(1);
+				
+			else
+%}
+			% Distance between points is found.
+			inter_point_dist = diff(xy_val(:,ind_peri),1,2);
+
+			% Length is calculated by using the Pythagorean Theorem.
+			edge_length = min(sqrt(sum(inter_point_dist.^2)));
 
 			% The y value is found by using the first index.
 
 			fun_ang = cos(theta) * xy_val(1,ind_peri) + sin(theta) * xy_val(2,ind_peri);
 
 			E0 = exp(1i * k0 * sqrt(diel_const) * fun_ang);
-
+				
 			bk = ((1 - fun_ang/r_circ) * 1i * k0 * sqrt(diel_const) - 1/(2 * r_circ)) .* E0 * edge_length/(2 * diel_const);
-			
+
 			bk = [2 * bk(1) + bk(2) , bk(1) + 2 * bk(2)]/3;
 
 			bv(t(ind_peri,i)) = bv(t(ind_peri,i)) + bk.';	%<-- Husk vinkelafhængig.
@@ -427,17 +512,21 @@ for k = 1:var_len
 
 	if strcmp(main_structure,'rectangle')
 		
+		ind_saved = [];
+		
 		i_for = i_for + 1;
 		
 		for i = 1:n_tri
 
 			if  any(i == ind_left_edge)
+				
+				x_val = p(1,t(1:3,i));
 
 				ind_opposite = ind_right_edge;
 
 				% Check which two indices in xy_val have the same x value.
 
-				ind_same_xval = logical(sum(repmat(xy_val(1,:),3,1) == repmat(xy_val(1,:)',1,3)) - 1);
+				ind_same_xval = logical(sum(repmat(x_val,3,1) == repmat(x_val',1,3)) - 1);
 
 				% The corresponding indices in the 'p' array.
 
@@ -512,6 +601,72 @@ for k = 1:var_len
 
 			end
 
+		end
+		
+	end
+	
+	%% Perfectly Matched Layer
+	
+	if strcmp(main_structure,'circle') && PML
+		
+		ind_saved = [];
+		
+		for i = 1:n_tri
+			
+			if any(i == ind_PML)
+				
+				xy_val = p(:,t(1:3,i));
+				
+				% Find which two indices are on the periphery.
+			
+				% Overall length is found.
+
+				ind_peri = sqrt(xy_val(1,:).^2 + xy_val(2,:).^2);
+
+				% Corner-corner average length.
+
+				cc_length = sqrt(diff(xy_val(1,[1 2 3 1])).^2 + diff(xy_val(2,[1 2 3 1])).^2);
+				cc_length = sum(cc_length)/length(cc_length);
+
+				% Find which two of the indices are on the periphery.
+
+				ind_peri = abs(round(ind_peri,2) - (r_circ + r_PML)) < cc_length/20;
+				
+				% Indices in 'p'.
+				
+				ind_in_p = t(ind_peri,i);
+				
+				% Compare with saved indices to see check if point has already been
+				% considered.
+
+				if ~isempty(ind_saved) && any(any((ind_in_p == repmat(ind_saved,length(ind_in_p),1))'))
+
+					% Removes an index if it has already been counted.
+
+					ind_in_p = ind_in_p(not(any((ind_in_p == repmat(ind_saved,length(ind_in_p),1))')));
+
+				end
+				
+				% Check whether the exclusion of duplicate indices empties the
+				% variable. If true, skip iteration.
+
+				if isempty(ind_in_p)
+
+					continue
+
+				end
+				
+				% Save the indices to not count them multiple times.
+
+				ind_saved(length(ind_saved)+1:length(ind_saved)+length(ind_in_p)) = ind_in_p;
+				
+				bv(ind_in_p) = 0;
+				
+				M(ind_in_p,:) = 0;
+				M(sub2ind(size(M),ind_in_p,ind_in_p)) = 1;
+				
+			end
+			
 		end
 		
 	end
@@ -653,7 +808,7 @@ function edge_index = edge_ind(pet,x_or_y,num)
 	
 	% Get the corresponding edge ID for the given x/y/r value.
 	
-	edge_id = unique(e(5,sum(point_val == num) == 2));
+	edge_id = unique(e(5,sum(abs(point_val - num) < 1) == 2));
 	
 	% All the edges with the given edge ID.
 	
@@ -663,7 +818,7 @@ function edge_index = edge_ind(pet,x_or_y,num)
 	
 	ind_edge_points = [e(1,apt_edges);e(2,apt_edges)];
 	
-	% Choosing only the indices which appear twice.
+	% Choosing only the 't' indices where two points appear.
 	
 	edge_index = find(sum(ismember(t(1:3,:),ind_edge_points)) == 2);
 	
@@ -676,6 +831,8 @@ function edge_index = edge_ind(pet,x_or_y,num)
 	%}
 	
 end
+
+%% Fixing midpoint in quadratic
 
 function [p,e,t] = MidPointFix(pet)
 
