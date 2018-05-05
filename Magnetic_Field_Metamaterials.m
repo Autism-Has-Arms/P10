@@ -53,17 +53,26 @@ for k = 1:var_len
 	
 	main_structure = 'circle'; % 'circle' or 'rectangle'.
 	
+	polarisation = 'p'; % 'p' or 's'.
+	
 	PML = true; % Include Perfectly-Matched Layer.
+	
+	enable_surface = true;
 	
 	geometric_order = 'linear'; % 'linear' or 'quadratic'.
 
 	lambda = 700;
 	
-	theta = 0;
+	theta = 3*pi/2;
 	
 	% Determines maximum size of elements. Therefore larger values of hmax
 	% creates fewer elements.
 	hmax = 2;
+	
+	n1 = 1;
+	n2 = sqrt(12);%interp1(r_i(:,1),r_i(:,2)+r_i(:,3)*1i,lambda);
+	di_const1 = n1^2;
+	di_const2 = n2^2;
 	
 	if strcmp(main_structure,'circle')
 		
@@ -75,7 +84,37 @@ for k = 1:var_len
 		
 		if PML
 			
-			r_PML = 800; % Distanace from r_circ.
+			r_PML = 1500; % Distanace from r_circ.
+			
+		end
+		
+		if enable_surface
+			
+			surface_height = 0;
+			
+			n3 = n2;
+			di_const3 = di_const2;
+			n2 = 1.5; % Glass.
+			di_const2 = n3^2;
+			
+			theta_1 = theta;
+			
+			if theta <= 3*pi/2
+				
+				theta_i = 3*pi/2 - theta_1;
+				theta_t = asin(n1/n2 * sin(theta_i));
+				theta_2 = 3*pi/2 - theta_t;
+				
+			else
+				
+				theta_i = theta_1 - 3*pi/2;
+				theta_t = asin(n1/n2 * sin(theta_i));
+				theta_2 = theta_t + 3*pi/2;
+				
+			end
+			
+			refl = (n2 * cos(theta_i) - n1 * cos(theta_t))/(n1 * cos(theta_t) + n2 * cos(theta_i));
+			tran = (2 * n1 * cos(theta_i))/(n1 * cos(theta_t) + n2 * cos(theta_i));
 			
 		end
 		
@@ -106,11 +145,6 @@ for k = 1:var_len
 	% r_i = load('Silver_refractive_index_file_J_C.m');
 	
 	% Minor calculations
-	
-	n1 = 1;
-	n2 = sqrt(12);%interp1(r_i(:,1),r_i(:,2)+r_i(:,3)*1i,lambda);
-	di_const1 = n1^2;
-	di_const2 = n2^2;
 	
 	if exist('var_string','var')
 		
@@ -178,11 +212,19 @@ for k = 1:var_len
 				
 			end
 			
+			if enable_surface
+				
+				obj_csg.create_csg('rectangle',2*(r_circ + r_PML),[surface_height , -(r_circ + r_PML)]);
+				
+			end
+			
 			obj_csg.sf = 'circ';
 			
-			obj_csg.create_csg('circle',[0 0],r_circ);
+			obj_csg.create_csg('circle',[0 , 0],r_circ);
 
-			obj_csg.create_csg('circle',[0 , 0],r_scat);
+			obj_csg.create_csg('circle',[0 , 15],r_scat);
+			
+% 			obj_csg.create_csg('circle',[15 , 15],r_scat);
 
 % 			obj_csg.create_csg('circle',[0 , 0],r_scat * (1 + 1/4));
 
@@ -194,9 +236,16 @@ for k = 1:var_len
 		%% Create Model, Geometry & Mesh
 
 		[dl,bt] = decsg(obj_csg.geom,obj_csg.sf,obj_csg.ns);
+		
+% 		if enable_surface
+% 		
+% 			[dl,bt] = csgdel(dl,bt,[1 2 3 4]);
+% 			
+% 		end
 
-% 		pdegplot(dl,'EdgeLabels','on','FaceLabels','on')
-% 		axis equal
+		figure
+		pdegplot(dl,'EdgeLabels','on','FaceLabels','on')
+		axis equal
 % 		asd
 
 		model = createpde(1);
@@ -206,6 +255,39 @@ for k = 1:var_len
 		mesh = generateMesh(model,'Hmax',hmax,'GeometricOrder',geometric_order);
 		
 
+		%% %% Zone determination
+		
+		unique_zones = unique([dl(6,:) , dl(7,:)]);
+
+		unique_zones = unique_zones(~unique_zones == 0);
+
+		zone_max = max(histc([dl(6,:) , dl(7,:)],unique_zones));
+
+		zone_majority_ind = histc([dl(6,:) , dl(7,:)],unique_zones) == zone_max;
+
+		if enable_surface
+			
+			zone_env = [1 3];
+			
+			zone_PML = [4 2];
+			
+			zone_upper = [zone_env(1) zone_PML(1)];
+			
+			zone_lower = [zone_env(2) zone_PML(2)];
+
+			zone_cyl = [5];
+
+			cyl_diel_const = di_const3 * (0.*zone_cyl + 1);
+
+			env_diel_const = [di_const1 di_const2]; % Corresponding dielectric constant
+			
+		else
+		
+			zone_main = [1 2 4];%unique_zones(zone_majority_ind);
+			
+		end
+		
+		
 		%% Triangle Manipulation
 
 		[p,e,t] = meshToPet(mesh);
@@ -214,11 +296,11 @@ for k = 1:var_len
 		
 % 		[p,e,t] = MidPointFix({p,e,t});
 		
-		[p,e,t] = refinemesh(dl,p,e,t,[3]);
+		[p,e,t] = refinemesh(dl,p,e,t,zone_cyl);
 		
-		[p,e,t] = refinemesh(dl,p,e,t,[3]);
+		[p,e,t] = refinemesh(dl,p,e,t,zone_cyl);
 		
-		[p,e,t] = refinemesh(dl,p,e,t,[3]);
+% 		[p,e,t] = refinemesh(dl,p,e,t,faces_cyl);
 % 		
 % 		[p,e,t] = refinemesh(dl,p,e,t,[2 3 4]);
 % 		
@@ -264,21 +346,6 @@ for k = 1:var_len
 	end
 	
 	
-	%% Zone determination
-	
-	unique_zones = unique([dl(6,:) , dl(7,:)]);
-	
-	unique_zones = unique_zones(~unique_zones == 0);
-	
-	zone_max = max(histc([dl(6,:) , dl(7,:)],unique_zones));
-	
-	zone_majority_ind = histc([dl(6,:) , dl(7,:)],unique_zones) == zone_max;
-	
-	zone_main = [1 2];%unique_zones(zone_majority_ind);
-	
-	zone_PML = 1;
-	
-	
 	%% Pre-calculation initialisations
 	
 	M = spalloc(size(p,2),size(p,2),3*length(p));
@@ -296,14 +363,30 @@ for k = 1:var_len
 
 		zone = t(end,i);
 		
-		if any(zone == zone_main)
-
-			diel_const = di_const1;
-
+		if enable_surface
+			
+			if any(zone == zone_upper)
+				
+				diel_const = di_const1;
+			
+			elseif any(zone == zone_lower)
+				
+				diel_const = di_const2;
+				
+			end
+			
 		else
+		
+			if any(zone == zone_main)
 
-			diel_const = di_const2;
+				diel_const = di_const1;
 
+			else
+
+				diel_const = di_const2;
+
+			end
+			
 		end
 		
 		ref_ind = sqrt(diel_const);
@@ -356,9 +439,9 @@ for k = 1:var_len
 			
 			sigma_0 = 6*log(10)/(2*pi/lambda*r_PML^3);%4*log(10)/(k0*(r_PML.^2)*(diel_const.^2));
 
-			if t(end,i) == zone_PML
+			if any(t(end,i) == zone_PML)
 			
-				sigma = sigma_0 * (r - r_0).^2;
+				sigma = sigma_0/diel_const * (r - r_0).^2;
 				
 			else
 				
@@ -378,7 +461,15 @@ for k = 1:var_len
 
 		end
 
-		Mk = k0^2 * B * area_tri_k * diel_const - A;
+		if strcmp(polarisation,'p')
+			
+			Mk = k0^2 * B * area_tri_k - A/diel_const;
+			
+		else
+			
+			Mk = k0^2 * B * area_tri_k * diel_const - A;
+			
+		end
 
 
 		%% Triangles with a side touching top or bottom edge
@@ -675,23 +766,127 @@ for k = 1:var_len
 		end
 		
 	end
+	
 
+	%% Create normal-vector at edge.
+	
+	if enable_surface
+	
+		vec_normal = [];
+		cyl_cent = obj_csg.geom(2:3,4:end);
+		j = 0;
+
+		for i = 1:length(e(1,:))
+
+			if any(ismember(e(6:7,i),zone_cyl))
+
+				j = j + 1;
+				l_or_r = sum(e(6:7,i) == zone_cyl,2);
+
+				vec = p(:,e(1:2,i));
+				vec_orth = [vec(2,2) - vec(2,1) ; (vec(1,2) - vec(1,1))] .* (l_or_r - ~l_or_r);
+				vec_normal = vec_orth/norm(vec_orth);% + cyl_cent(:,logical(sum(e(6:7,i) == faces_cyl,1)));
+
+				u_or_d = logical(sum(e(6:7,i) == zone_env,2));
+
+				di_ref = env_diel_const(u_or_d);
+
+				H_prime = [(vec_normal(1)*cos(theta_1) + vec_normal(2)*sin(theta_1))...
+						 * 1i * k0 * n1 * exp(1i*k0*n1*(cos(theta_1)*sum(vec(1,:))/2 + sin(theta_1)*sum(vec(2,:))/2))...
+						 + (vec_normal(1)*cos(theta_1) - vec_normal(2)*sin(theta_1))...
+						 * 1i * k0 * n1 * refl * exp(1i*k0*n1*(cos(theta_1)*sum(vec(1,:))/2 - sin(theta_1)*sum(vec(2,:))/2));...
+						   (vec_normal(1)*cos(theta_2) + vec_normal(2)*sin(theta_2))...
+						 * 1i * k0 * n2 * tran * exp(1i*k0*n2*(cos(theta_2)*sum(vec(1,:))/2 + sin(theta_2)*sum(vec(2,:))/2))];
+
+				H = (norm(vec_orth)/2)*(1/di_const3 - 1/di_ref)*H_prime(u_or_d);
+
+				bv(e(1:2,i)) = bv(e(1:2,i)) + H;
+
+			end
+
+		end
+		
+	end
+	
+	% Over all cylinders.
+	
+	for i = 1:length(zone_cyl)
+	
+		tri_in_cyl = t(1:end-1,ismember(t(4,:),zone_cyl(i)));
+
+		tri_cyl_x = p(1,tri_in_cyl);
+		tri_cyl_y = p(2,tri_in_cyl);
+		xy_123_vals = [1:3:length(tri_cyl_x) ; 2:3:length(tri_cyl_x) ; 3:3:length(tri_cyl_x) ];
+		tri_area = abs((tri_cyl_y(xy_123_vals(3,:)) - tri_cyl_y(xy_123_vals(1,:)))...
+					.* (tri_cyl_x(xy_123_vals(2,:)) - tri_cyl_x(xy_123_vals(1,:)))...
+					 - (tri_cyl_y(xy_123_vals(2,:)) - tri_cyl_y(xy_123_vals(1,:)))...
+					.* (tri_cyl_x(xy_123_vals(3,:)) - tri_cyl_x(xy_123_vals(1,:))));
+			
+		x_avg = (tri_cyl_x(xy_123_vals(1,:)) + tri_cyl_x(xy_123_vals(2,:)) + tri_cyl_x(xy_123_vals(3,:)))/3;
+		y_avg = (tri_cyl_y(xy_123_vals(1,:)) + tri_cyl_y(xy_123_vals(2,:)) + tri_cyl_y(xy_123_vals(3,:)))/3;
+				
+		if cyl_cent(2,i) > 0
+			
+			di_ref = env_diel_const(1);
+			
+			H0r = exp(1i*k0*(di_ref.^2)*(cos(theta_1)*x_avg + sin(theta_1)*y_avg))...
+				+ r*exp(1i*k0*(di_ref.^2)*(cos(theta_1)*x_avg - sin(theta_1)*y_avg));
+			
+		else
+			
+			di_ref = env_diel_const(2);
+			
+			H0r = t*exp(1i*k0*(di_ref.^2)*(cos(theta_2)*x_avg + sin(theta_2)*y_avg));
+			
+		end
+		
+		bk = tri_area/6 .* (1/cyl_diel_const(i) - 1/di_ref) .* k0 .* di_ref .* H0r;
+		
+		bv(tri_in_cyl) = bv(tri_in_cyl) + bk;
+			
+	end
+	
+% 	asd
+	
+% 	% Get edges with touching the face of one of the cylinders.
+% 	ind_edge_face = any(ismember(e(6:7,:),faces_cyl));
+% 	
+% 	% Get indices in 'p' of these edges' points
+% 	ind_p_edge = e(1:2,ind_edge_face);
+% 	
+% 	% Get all the triangle indices within one of the two cylinder faces.
+% 	ind_tri_face = any(t(end,:) == faces_cyl.');
+% 	
+% 	% Get indices in 'p' of these triangles' points.
+% 	ind_p_tri = t(1:end-1,ind_tri_face);
+% 	
+% 	% Get triangle indices which share 2 points with an edge.
+% 	ind_tri_share = sum(ismember(ind_p_tri,ind_p_edge)) == 2;
+	
 	Hv = M\bv;
 	
-	H0vxy = cos(theta) * p(1,:) + sin(theta) * p(2,:);
-	
-	H0v = exp(1i*k0*H0vxy).';
-	
-	Hv = Hv + H0v;
-
-	pdeplot(p,e,t,'xydata',abs(Hv))%,'Zdata',abs(Hv))
+	figure
+	pdeplot(p,e,t,'xydata',abs(Hv.'))%,'Zdata',abs(Hv))
 	colormap gray %parula
 	hold on
 	pdegplot(dl)
 	axis equal
+	
+	H0vxy = cos(theta) * p(1,:) + sin(theta) * p(2,:);
+	H0v = exp(1i*k0*n1*H0vxy).';
+	Hvn = Hv + H0r;
+
+	figure
+	pdeplot(p,e,t,'xydata',abs(Hvn))%,'Zdata',abs(Hv))
+	colormap gray %parula
+	hold on
+	pdegplot(dl)
+	axis equal
+
 % 	caxis([0 1.5])
 
-% 	asd
+	asd
+
 	%% Plotting values of line down through structure
 	
 	angle_peri = linspace(0,2*pi,10000);
@@ -721,7 +916,7 @@ for k = 1:var_len
 	
 	curve_area = trapz(angle_peri,line_abs/r_circ);
 	
-	figure(2)
+	figure(3)
 
 % 	scatter3(cos(angle_peri)*r_circ,sin(angle_peri)*r_circ,line_abs,1,line_abs)
 	plot(angle_peri,line_abs)

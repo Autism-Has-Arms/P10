@@ -43,7 +43,7 @@ classdef csg < handle
 						
 					else
 						
-						temp_geom = [3 , 4 , a/2 , -a/2 , -a/2 , a/2 , (b(1)/2)+b(2) , (b(1)/2)+b(2) , (-b(1)/2)+b(2) , (-b(1)/2)+b(2)];
+						temp_geom = [3 , 4 , a/2 , -a/2 , -a/2 , a/2 , b(1) , b(1) , b(2) , b(2)];
 						
 					end
 					
