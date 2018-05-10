@@ -51,11 +51,11 @@ for k = 1:var_len
 
 	%% Parameters
 	
-	main_structure = 'circle'; % 'circle' or 'rectangle'.
+	main_structure = 'circle';	% 'circle' or 'rectangle'.
 	
-	polarisation = 'p'; % 'p' or 's'.
+	polarisation = 's';			% 'p' or 's'.
 	
-	PML = true; % Include Perfectly-Matched Layer.
+	PML = true;					% Include Perfectly-Matched Layer.
 	
 	enable_surface = true;
 	
@@ -63,28 +63,30 @@ for k = 1:var_len
 
 	lambda = 700;
 	
-	theta = 3*pi/2;
+	theta = 6*pi/4;
 	
 	% Determines maximum size of elements. Therefore larger values of hmax
 	% creates fewer elements.
-	hmax = 2;
+	hmax = 3;
 	
 	n1 = 1;
-	n2 = sqrt(12);%interp1(r_i(:,1),r_i(:,2)+r_i(:,3)*1i,lambda);
+	n2 = sqrt(12);%interp1(r_i(:,1),r_i(:,2)+r_i(:,3)*1i,lambda); % Cylinder
 	di_const1 = n1^2;
 	di_const2 = n2^2;
+	mag_const1 = 1;
+	mag_const2 = 1;
 	
 	if strcmp(main_structure,'circle')
 		
 		hmax = hmax * 10;
 		
-		r_circ = 1500;	% Radius of area.
+		r_circ = 1500;					% Radius of area.
 		
-		r_scat = 10;	% Radius of scatterer.
+		scatterers = [50 100 0 ; 50 -100 0 ; 50 0 100 ; 50 0 -100];		% [Radii ; Centre x-coordinates ; Centre y_coordinates] of scatterer.
 		
 		if PML
 			
-			r_PML = 1500; % Distanace from r_circ.
+			r_PML = 800;				% Distanace from r_circ.
 			
 		end
 		
@@ -94,8 +96,10 @@ for k = 1:var_len
 			
 			n3 = n2;
 			di_const3 = di_const2;
+			mag_const3 = mag_const2;
 			n2 = 1.5; % Glass.
-			di_const2 = n3^2;
+			di_const2 = n2^2;
+			mag_const2 = 1;
 			
 			theta_1 = theta;
 			
@@ -114,7 +118,7 @@ for k = 1:var_len
 			end
 			
 			refl = (n2 * cos(theta_i) - n1 * cos(theta_t))/(n1 * cos(theta_t) + n2 * cos(theta_i));
-			tran = (2 * n1 * cos(theta_i))/(n1 * cos(theta_t) + n2 * cos(theta_i));
+			tran = (2 * n2 * cos(theta_i))/(n1 * cos(theta_t) + n2 * cos(theta_i));
 			
 		end
 		
@@ -212,23 +216,35 @@ for k = 1:var_len
 				
 			end
 			
-			if enable_surface
-				
-				obj_csg.create_csg('rectangle',2*(r_circ + r_PML),[surface_height , -(r_circ + r_PML)]);
-				
-			end
-			
 			obj_csg.sf = 'circ';
 			
 			obj_csg.create_csg('circle',[0 , 0],r_circ);
-
-			obj_csg.create_csg('circle',[0 , 15],r_scat);
+			
+			for i = 1:size(scatterers,1)
+			
+				obj_csg.create_csg('circle',[scatterers(i,2) , scatterers(i,3)],scatterers(i,1));
+				
+			end
 			
 % 			obj_csg.create_csg('circle',[15 , 15],r_scat);
 
 % 			obj_csg.create_csg('circle',[0 , 0],r_scat * (1 + 1/4));
 
 % 			obj_csg.create_csg('circle',[0 , 0],r_circ * (1 - 1/30));
+
+			if enable_surface
+				
+				if PML
+				
+					obj_csg.create_csg('rectangle',2*(r_circ + r_PML),[surface_height , -(r_circ + r_PML)]);
+					
+				else
+					
+					obj_csg.create_csg('rectangle',2*r_circ,[surface_height , -r_circ]);
+					
+				end
+				
+			end
 			
 		end
 
@@ -255,37 +271,19 @@ for k = 1:var_len
 		mesh = generateMesh(model,'Hmax',hmax,'GeometricOrder',geometric_order);
 		
 
-		%% %% Zone determination
+		%% Zone determination
 		
-		unique_zones = unique([dl(6,:) , dl(7,:)]);
-
-		unique_zones = unique_zones(~unique_zones == 0);
-
-		zone_max = max(histc([dl(6,:) , dl(7,:)],unique_zones));
-
-		zone_majority_ind = histc([dl(6,:) , dl(7,:)],unique_zones) == zone_max;
-
-		if enable_surface
-			
-			zone_env = [1 3];
-			
-			zone_PML = [4 2];
-			
-			zone_upper = [zone_env(1) zone_PML(1)];
-			
-			zone_lower = [zone_env(2) zone_PML(2)];
-
-			zone_cyl = [5];
-
-			cyl_diel_const = di_const3 * (0.*zone_cyl + 1);
-
-			env_diel_const = [di_const1 di_const2]; % Corresponding dielectric constant
-			
-		else
+		obj_zone = zone_determination;
 		
-			zone_main = [1 2 4];%unique_zones(zone_majority_ind);
+		obj_zone.zone_det(bt,'enable_surface',enable_surface,'PML',PML)
+		
+		cyl_diel_const = di_const3 * ones(1,length(obj_zone.cyl));
 			
-		end
+		env_diel_const = [di_const1 di_const2]; % Corresponding dielectric constant
+
+		cyl_mag_const = mag_const3 * ones(1,length(obj_zone.cyl));
+
+		env_mag_const = [mag_const1 mag_const2];
 		
 		
 		%% Triangle Manipulation
@@ -296,19 +294,14 @@ for k = 1:var_len
 		
 % 		[p,e,t] = MidPointFix({p,e,t});
 		
-		[p,e,t] = refinemesh(dl,p,e,t,zone_cyl);
+		[p,e,t] = refinemesh(dl,p,e,t,obj_zone.cyl);
 		
-		[p,e,t] = refinemesh(dl,p,e,t,zone_cyl);
+		[p,e,t] = refinemesh(dl,p,e,t,obj_zone.cyl);
 		
-% 		[p,e,t] = refinemesh(dl,p,e,t,faces_cyl);
-% 		
-% 		[p,e,t] = refinemesh(dl,p,e,t,[2 3 4]);
-% 		
-% 		[p,e,t] = refinemesh(dl,p,e,t,[2 3 4]);
-% 		
-% 		[p,e,t] = refinemesh(dl,p,e,t,[2 3 4]);
+% 		figure
 % 		pdemesh(p,e,t)
 % 		asd
+		
 		n_tri = size(t,2);
 
 		B = [2 1 1 ; 1 2 1 ; 1 1 2]/12;
@@ -331,7 +324,7 @@ for k = 1:var_len
 				
 				ind_PML = edge_ind({p,e,t},'r',r_circ + r_PML);
 				
-				n_for = var_len;
+				n_for = 2*var_len;
 				
 			else
 			
@@ -339,6 +332,12 @@ for k = 1:var_len
 
 				n_for = var_len;
 			
+			end
+			
+			if enable_surface
+				
+				n_for = n_for + 2*var_len;
+				
 			end
 			
 		end
@@ -365,25 +364,34 @@ for k = 1:var_len
 		
 		if enable_surface
 			
-			if any(zone == zone_upper)
+			if any(zone == obj_zone.upper)
 				
 				diel_const = di_const1;
+				mag_const = mag_const1;
 			
-			elseif any(zone == zone_lower)
+			elseif any(zone == obj_zone.lower)
 				
 				diel_const = di_const2;
+				mag_const = mag_const2;
+				
+			elseif any(zone == obj_zone.cyl)
+				
+				diel_const = di_const3;
+				mag_const = mag_const3;
 				
 			end
 			
 		else
 		
-			if any(zone == zone_main)
+			if any(zone == obj_zone.env)
 
 				diel_const = di_const1;
+				mag_const = mag_const1;
 
 			else
 
 				diel_const = di_const2;
+				mag_const = mag_const2;
 
 			end
 			
@@ -439,7 +447,7 @@ for k = 1:var_len
 			
 			sigma_0 = 6*log(10)/(2*pi/lambda*r_PML^3);%4*log(10)/(k0*(r_PML.^2)*(diel_const.^2));
 
-			if any(t(end,i) == zone_PML)
+			if any(t(end,i) == obj_zone.PML)
 			
 				sigma = sigma_0/diel_const * (r - r_0).^2;
 				
@@ -454,20 +462,34 @@ for k = 1:var_len
 			fun_ang = cos(theta) * x_mid_tri + sin(theta) * y_mid_tri;
 
 			E0 = exp(1i * k0 * fun_ang);
-
-			bk = - k0.^2 * (diel_const - di_const1) * E0 * 2 * area_tri_k / 6;
+			
+		else
+			
+			switch polarisation
+				
+				case 'p'
+			
+					bk = - k0.^2 * (1/diel_const - 1/di_const1) * E0 * 2 * area_tri_k / 6;
+					
+				case 's'
+					
+					bk = - k0.^2 * (diel_const - di_const1) * E0 * 2 * area_tri_k / 6;
+					
+			end
 			
 			bv(t(1:3,i)) = bv(t(1:3,i)) + bk.';
 
 		end
 
-		if strcmp(polarisation,'p')
+		switch polarisation
 			
-			Mk = k0^2 * B * area_tri_k - A/diel_const;
+			case 'p'
 			
-		else
+				Mk = k0^2 * B * area_tri_k * mag_const - A/diel_const;
 			
-			Mk = k0^2 * B * area_tri_k * diel_const - A;
+			case 's'
+			
+				Mk = k0^2 * B * area_tri_k * diel_const - A/mag_const;
 			
 		end
 
@@ -707,6 +729,8 @@ for k = 1:var_len
 		
 		ind_saved = [];
 		
+		i_for = i_for + 1;
+		
 		for i = 1:n_tri
 			
 			if any(i == ind_PML)
@@ -756,11 +780,21 @@ for k = 1:var_len
 
 				ind_saved(length(ind_saved)+1:length(ind_saved)+length(ind_in_p)) = ind_in_p;
 				
-% 				bv(ind_in_p) = 0;
+				bv(ind_in_p) = 0;
 				
 				M(ind_in_p,:) = 0;
 				M(sub2ind(size(M),ind_in_p,ind_in_p)) = 1;
 				
+			end
+			
+			if exist('disppct.m','file') == 2 && exist('dispstat.m','file') == 2
+
+				pct = disppct(i,n_tri,pct,i_for,n_for);
+
+			else
+
+				i/n_tri*100
+
 			end
 			
 		end
@@ -773,77 +807,204 @@ for k = 1:var_len
 	if enable_surface
 	
 		vec_normal = [];
-		cyl_cent = obj_csg.geom(2:3,4:end);
+		cyl_cent = scatterers(:,2:3);
 		j = 0;
+		i_for = i_for + 1;
 
 		for i = 1:length(e(1,:))
 
-			if any(ismember(e(6:7,i),zone_cyl))
+			if any(ismember(e(6:7,i),obj_zone.cyl))
 
 				j = j + 1;
-				l_or_r = sum(e(6:7,i) == zone_cyl,2);
+				l_or_r = logical(sum(e(6:7,i) == obj_zone.cyl,2));
 
 				vec = p(:,e(1:2,i));
 				vec_orth = [vec(2,2) - vec(2,1) ; (vec(1,2) - vec(1,1))] .* (l_or_r - ~l_or_r);
 				vec_normal = vec_orth/norm(vec_orth);% + cyl_cent(:,logical(sum(e(6:7,i) == faces_cyl,1)));
+				
+				if all(l_or_r)
+					
+					H_prime = (vec_normal(1)*cos(theta_2) + vec_normal(2)*sin(theta_2))...
+							 * 1i * k0 * n2 * tran * exp(1i*k0*n2*(cos(theta_2)*sum(vec(1,:))/2 + sin(theta_2)*sum(vec(2,:))/2));
+					
+					if vec_normal(2) == 1
+						
+						u_or_d = logical([1 ; 0]);
+						
+					else
+						
+						u_or_d = logical([0 ; 1]);
+						
+					end
+					
+					switch polarisation
 
-				u_or_d = logical(sum(e(6:7,i) == zone_env,2));
+						case 'p'
+							
+							di_1 = cyl_diel_const(u_or_d);
+							di_ref_1 = env_diel_const(u_or_d);
+							di_2 = cyl_diel_const(~u_or_d);
+							di_ref_2 = env_diel_const(~u_or_d);
 
-				di_ref = env_diel_const(u_or_d);
+							bk = (norm(vec_orth)/2)*((1/di_1 - 1/di_ref_1)-(1/di_2 - 1/di_ref_2))*H_prime;
 
-				H_prime = [(vec_normal(1)*cos(theta_1) + vec_normal(2)*sin(theta_1))...
-						 * 1i * k0 * n1 * exp(1i*k0*n1*(cos(theta_1)*sum(vec(1,:))/2 + sin(theta_1)*sum(vec(2,:))/2))...
-						 + (vec_normal(1)*cos(theta_1) - vec_normal(2)*sin(theta_1))...
-						 * 1i * k0 * n1 * refl * exp(1i*k0*n1*(cos(theta_1)*sum(vec(1,:))/2 - sin(theta_1)*sum(vec(2,:))/2));...
-						   (vec_normal(1)*cos(theta_2) + vec_normal(2)*sin(theta_2))...
-						 * 1i * k0 * n2 * tran * exp(1i*k0*n2*(cos(theta_2)*sum(vec(1,:))/2 + sin(theta_2)*sum(vec(2,:))/2))];
+						case 's'
+							
+							mag_1 = cyl_mag_const(u_or_d);
+							mag_ref_1 = env_mag_const(u_or_d);
+							mag_2 = cyl_mag_const(~u_or_d);
+							mag_ref_2 = env_mag_const(~u_or_d);
 
-				H = (norm(vec_orth)/2)*(1/di_const3 - 1/di_ref)*H_prime(u_or_d);
+							bk = (norm(vec_orth)/2)*((1/mag_1 - 1/mag_ref_1)-(1/mag_2 - 1/mag_ref_2))*H_prime;
 
-				bv(e(1:2,i)) = bv(e(1:2,i)) + H;
+					end
+					
+				else
+
+					u_or_d = logical(sum(e(6:7,i) == obj_zone.env,2));
+
+					H_prime = [(vec_normal(1)*cos(theta_1) + vec_normal(2)*sin(theta_1))...
+							 * 1i * k0 * n1 * exp(1i*k0*n1*(cos(theta_1)*sum(vec(1,:))/2 + sin(theta_1)*sum(vec(2,:))/2))...
+							 + (vec_normal(1)*cos(theta_1) - vec_normal(2)*sin(theta_1))...
+							 * 1i * k0 * n1 * refl * exp(1i*k0*n1*(cos(theta_1)*sum(vec(1,:))/2 - sin(theta_1)*sum(vec(2,:))/2))...
+							 ;...
+							   (vec_normal(1)*cos(theta_2) + vec_normal(2)*sin(theta_2))...
+							 * 1i * k0 * n2 * tran * exp(1i*k0*n2*(cos(theta_2)*sum(vec(1,:))/2 + sin(theta_2)*sum(vec(2,:))/2))];
+
+					switch polarisation
+
+						case 'p'
+							
+							di_1 = env_diel_const(u_or_d);
+							di_ref_1 = env_diel_const(1);
+							di_2 = cyl_diel_const(l_or_r);
+							di_ref_2 = env_diel_const(2);
+
+							bk = (norm(vec_orth)/2)*(((1/di_1 - 1/di_ref_1) - (1/di_2 - 1/di_ref_2))*H_prime(u_or_d));
+
+						case 's'
+							
+							mag_1 = env_mag_const(u_or_d);
+							mag_ref_1 = env_mag_const(1);
+							mag_2 = cyl_mag_const(l_or_r);
+							mag_ref_2 = env_mag_const(2);
+
+							bk = (norm(vec_orth)/2)*((1/mag_1 - 1/mag_ref_1) - (1/mag_2 - 1/mag_ref_2))*H_prime(u_or_d);
+
+					end
+					
+				end
+				
+				bv(e(1:2,i)) = bv(e(1:2,i)) + bk;
+
+			end
+			
+			if exist('disppct.m','file') == 2 && exist('dispstat.m','file') == 2
+
+				pct = disppct(i,length(e(1,:)),pct,i_for,n_for);
+
+			else
+
+				i/n_tri*100
 
 			end
 
 		end
-		
-	end
 	
-	% Over all cylinders.
+	%% Over all cylinders.
 	
-	for i = 1:length(zone_cyl)
+	cyl_vec = reshape(obj_zone.cyl,[],2);
 	
-		tri_in_cyl = t(1:end-1,ismember(t(4,:),zone_cyl(i)));
+		for i = 1:size(cyl_vec,1)
+			
+			for j = 1:size(cyl_vec,2)
 
-		tri_cyl_x = p(1,tri_in_cyl);
-		tri_cyl_y = p(2,tri_in_cyl);
-		xy_123_vals = [1:3:length(tri_cyl_x) ; 2:3:length(tri_cyl_x) ; 3:3:length(tri_cyl_x) ];
-		tri_area = abs((tri_cyl_y(xy_123_vals(3,:)) - tri_cyl_y(xy_123_vals(1,:)))...
-					.* (tri_cyl_x(xy_123_vals(2,:)) - tri_cyl_x(xy_123_vals(1,:)))...
-					 - (tri_cyl_y(xy_123_vals(2,:)) - tri_cyl_y(xy_123_vals(1,:)))...
-					.* (tri_cyl_x(xy_123_vals(3,:)) - tri_cyl_x(xy_123_vals(1,:))));
-			
-		x_avg = (tri_cyl_x(xy_123_vals(1,:)) + tri_cyl_x(xy_123_vals(2,:)) + tri_cyl_x(xy_123_vals(3,:)))/3;
-		y_avg = (tri_cyl_y(xy_123_vals(1,:)) + tri_cyl_y(xy_123_vals(2,:)) + tri_cyl_y(xy_123_vals(3,:)))/3;
+				tri_in_cyl = t(1:end-1,ismember(t(4,:),cyl_vec(i,j)));
+
+				tri_cyl_x = p(1,tri_in_cyl);
+				tri_cyl_y = p(2,tri_in_cyl);
+				xy_123_vals = [1:3:length(tri_cyl_x) ; 2:3:length(tri_cyl_x) ; 3:3:length(tri_cyl_x) ];
+				tri_area = abs((tri_cyl_y(xy_123_vals(3,:)) - tri_cyl_y(xy_123_vals(1,:)))...
+							.* (tri_cyl_x(xy_123_vals(2,:)) - tri_cyl_x(xy_123_vals(1,:)))...
+							 - (tri_cyl_y(xy_123_vals(2,:)) - tri_cyl_y(xy_123_vals(1,:)))...
+							.* (tri_cyl_x(xy_123_vals(3,:)) - tri_cyl_x(xy_123_vals(1,:))));
+
+				x_avg = (tri_cyl_x(xy_123_vals(1,:)) + tri_cyl_x(xy_123_vals(2,:)) + tri_cyl_x(xy_123_vals(3,:)))/3;
+				y_avg = (tri_cyl_y(xy_123_vals(1,:)) + tri_cyl_y(xy_123_vals(2,:)) + tri_cyl_y(xy_123_vals(3,:)))/3;
+
+				if cyl_cent(i,2) > surface_height
+
+					di_ref = env_diel_const(1);
+
+					mag_ref = env_mag_const(1);
+
+					H0r = exp(1i*k0*(sqrt(di_ref))*(cos(theta_1)*x_avg + sin(theta_1)*y_avg))...
+						+ refl*exp(1i*k0*(sqrt(di_ref))*(cos(theta_1)*x_avg - sin(theta_1)*y_avg));
+
+				else
+
+					di_ref = env_diel_const(2);
+
+					mag_ref = env_mag_const(2);
+
+					H0r = tran*exp(1i*k0*(sqrt(di_ref))*(cos(theta_2)*x_avg + sin(theta_2)*y_avg));
+
+				end
 				
-		if cyl_cent(2,i) > 0
-			
-			di_ref = env_diel_const(1);
-			
-			H0r = exp(1i*k0*(di_ref.^2)*(cos(theta_1)*x_avg + sin(theta_1)*y_avg))...
-				+ r*exp(1i*k0*(di_ref.^2)*(cos(theta_1)*x_avg - sin(theta_1)*y_avg));
-			
-		else
-			
-			di_ref = env_diel_const(2);
-			
-			H0r = t*exp(1i*k0*(di_ref.^2)*(cos(theta_2)*x_avg + sin(theta_2)*y_avg));
-			
+				switch polarisation
+					
+					case 'p'
+
+						bk = tri_area/6 .* (di_ref .*(1/cyl_diel_const(i) - 1/di_ref) - (cyl_mag_const(i) - mag_ref)) .* k0.^2 .* di_ref .* H0r;
+						
+					case 's'
+						
+						bk = tri_area/6 .* (mag_ref .*(1/cyl_mag_const(i) - 1/mag_ref) - (cyl_diel_const(i) - di_ref)) .* k0.^2 .* mag_ref .* H0r;
+						
+				end
+
+				bv(tri_in_cyl) = bv(tri_in_cyl) + bk;
+				
+			end
+
 		end
 		
-		bk = tri_area/6 .* (1/cyl_diel_const(i) - 1/di_ref) .* k0 .* di_ref .* H0r;
+		H0v = zeros(size(p,2),1);
 		
-		bv(tri_in_cyl) = bv(tri_in_cyl) + bk;
+		i_for = i_for + 1;
+		
+		for i = 1:size(p,2)
 			
+			x_vec = p(1,i);
+			y_vec = p(2,i);
+			
+			if y_vec >= surface_height
+				
+				ref_ind = sqrt(di_const1);
+				
+				H0v(i) = exp(1i * k0 * ref_ind * (cos(theta_1) * x_vec + sin(theta_1) * y_vec))...
+					   + refl * exp(1i * k0 * ref_ind * (cos(theta_1) * x_vec - sin(theta_1) * y_vec));
+				
+			else
+				
+				ref_ind = sqrt(di_const2);
+				
+				H0v(i) = tran * exp(1i * k0 * ref_ind * (cos(theta_2) * x_vec + sin(theta_2) * y_vec));
+				
+			end
+			
+			if exist('disppct.m','file') == 2 && exist('dispstat.m','file') == 2
+
+				pct = disppct(i,size(p,2),pct,i_for,n_for);
+
+			else
+
+				i/n_tri*100
+
+			end
+			
+		end
+	
 	end
 	
 % 	asd
@@ -865,18 +1026,20 @@ for k = 1:var_len
 	
 	Hv = M\bv;
 	
-	figure
+	figure('Position',[10 200 500 400])
 	pdeplot(p,e,t,'xydata',abs(Hv.'))%,'Zdata',abs(Hv))
 	colormap gray %parula
 	hold on
 	pdegplot(dl)
 	axis equal
 	
-	H0vxy = cos(theta) * p(1,:) + sin(theta) * p(2,:);
-	H0v = exp(1i*k0*n1*H0vxy).';
-	Hvn = Hv + H0r;
+% 	H0vxy = cos(theta) * p(1,:) + sin(theta) * p(2,:);
+% 	H0v = exp(1i*k0*n1*H0vxy).';
+	Hvn = Hv + H0v;
+	
+	screensize = get(0,'ScreenSize');
 
-	figure
+	figure('Position',[(screensize(3)-500-10) 200 500 400])
 	pdeplot(p,e,t,'xydata',abs(Hvn))%,'Zdata',abs(Hv))
 	colormap gray %parula
 	hold on
@@ -891,9 +1054,9 @@ for k = 1:var_len
 	
 	angle_peri = linspace(0,2*pi,10000);
 	
-	line_x = cos(angle_peri) * (r_circ - 100);
+	line_x = cos(angle_peri) * r_circ;
 	
-	line_y = sin(angle_peri) * (r_circ - 100);
+	line_y = sin(angle_peri) * r_circ;
 	
 	%{
 	line_x = linspace(0,0,500);
@@ -902,9 +1065,9 @@ for k = 1:var_len
 	%}
 	% Interpolant
 	
-	fun_ang = cos(theta) .* line_x + sin(theta) .* line_y;
+% 	fun_ang = cos(theta) .* line_x + sin(theta) .* line_y;
 
-	E0_line = exp(1i * k0 * sqrt(1) * line_x).'; % fun_ang <=> line_x
+% 	E0_line = exp(1i * k0 * sqrt(1) * line_x).'; % fun_ang <=> line_x
 
 	int_F = pdeInterpolant(p,t,Hv);
 
@@ -912,11 +1075,21 @@ for k = 1:var_len
 	
 	line_abs = (abs(evaluate(int_F,[line_x;line_y])).^2)*(r_circ - 100);
 	
+	if enable_surface
+	
+		line_abs(line_y < surface_height) = line_abs(line_y < surface_height)/n2;
+		
+	else
+		
+		line_abs(line_y < surface_height) = line_abs(line_y < surface_height)/n1;
+		
+	end
+	
 	line_abs = line_abs / max(line_abs);
 	
 	curve_area = trapz(angle_peri,line_abs/r_circ);
 	
-	figure(3)
+	figure
 
 % 	scatter3(cos(angle_peri)*r_circ,sin(angle_peri)*r_circ,line_abs,1,line_abs)
 	plot(angle_peri,line_abs)

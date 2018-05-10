@@ -25,6 +25,7 @@ classdef csg < handle
 		
 	end
 	
+	
 	methods
 		
 		function create_csg(obj,type,a,b)
