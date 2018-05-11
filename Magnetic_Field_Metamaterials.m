@@ -913,59 +913,53 @@ for k = 1:var_len
 	
 	%% Over all cylinders.
 	
-	cyl_vec = reshape(obj_zone.cyl,[],2);
-	
-		for i = 1:size(cyl_vec,1)
+		for i = 1:length(obj_zone.cyl)
 			
-			for j = 1:size(cyl_vec,2)
+			tri_in_cyl = t(1:end-1,ismember(t(4,:),obj_zone.cyl(i)));
 
-				tri_in_cyl = t(1:end-1,ismember(t(4,:),cyl_vec(i,j)));
+			tri_cyl_x = p(1,tri_in_cyl);
+			tri_cyl_y = p(2,tri_in_cyl);
+			xy_123_vals = [1:3:length(tri_cyl_x) ; 2:3:length(tri_cyl_x) ; 3:3:length(tri_cyl_x)];
+			tri_area = abs((tri_cyl_y(xy_123_vals(3,:)) - tri_cyl_y(xy_123_vals(1,:)))...
+						.* (tri_cyl_x(xy_123_vals(2,:)) - tri_cyl_x(xy_123_vals(1,:)))...
+						 - (tri_cyl_y(xy_123_vals(2,:)) - tri_cyl_y(xy_123_vals(1,:)))...
+						.* (tri_cyl_x(xy_123_vals(3,:)) - tri_cyl_x(xy_123_vals(1,:))));
 
-				tri_cyl_x = p(1,tri_in_cyl);
-				tri_cyl_y = p(2,tri_in_cyl);
-				xy_123_vals = [1:3:length(tri_cyl_x) ; 2:3:length(tri_cyl_x) ; 3:3:length(tri_cyl_x) ];
-				tri_area = abs((tri_cyl_y(xy_123_vals(3,:)) - tri_cyl_y(xy_123_vals(1,:)))...
-							.* (tri_cyl_x(xy_123_vals(2,:)) - tri_cyl_x(xy_123_vals(1,:)))...
-							 - (tri_cyl_y(xy_123_vals(2,:)) - tri_cyl_y(xy_123_vals(1,:)))...
-							.* (tri_cyl_x(xy_123_vals(3,:)) - tri_cyl_x(xy_123_vals(1,:))));
+			x_avg = (tri_cyl_x(xy_123_vals(1,:)) + tri_cyl_x(xy_123_vals(2,:)) + tri_cyl_x(xy_123_vals(3,:)))/3;
+			y_avg = (tri_cyl_y(xy_123_vals(1,:)) + tri_cyl_y(xy_123_vals(2,:)) + tri_cyl_y(xy_123_vals(3,:)))/3;
 
-				x_avg = (tri_cyl_x(xy_123_vals(1,:)) + tri_cyl_x(xy_123_vals(2,:)) + tri_cyl_x(xy_123_vals(3,:)))/3;
-				y_avg = (tri_cyl_y(xy_123_vals(1,:)) + tri_cyl_y(xy_123_vals(2,:)) + tri_cyl_y(xy_123_vals(3,:)))/3;
+			if mean(y_avg) > surface_height
 
-				if cyl_cent(i,2) > surface_height
+				di_ref = env_diel_const(1);
 
-					di_ref = env_diel_const(1);
+				mag_ref = env_mag_const(1);
 
-					mag_ref = env_mag_const(1);
+				H0r = exp(1i*k0*(sqrt(di_ref))*(cos(theta_1)*x_avg + sin(theta_1)*y_avg))...
+					+ refl*exp(1i*k0*(sqrt(di_ref))*(cos(theta_1)*x_avg - sin(theta_1)*y_avg));
 
-					H0r = exp(1i*k0*(sqrt(di_ref))*(cos(theta_1)*x_avg + sin(theta_1)*y_avg))...
-						+ refl*exp(1i*k0*(sqrt(di_ref))*(cos(theta_1)*x_avg - sin(theta_1)*y_avg));
+			else
 
-				else
+				di_ref = env_diel_const(2);
 
-					di_ref = env_diel_const(2);
+				mag_ref = env_mag_const(2);
 
-					mag_ref = env_mag_const(2);
+				H0r = tran*exp(1i*k0*(sqrt(di_ref))*(cos(theta_2)*x_avg + sin(theta_2)*y_avg));
 
-					H0r = tran*exp(1i*k0*(sqrt(di_ref))*(cos(theta_2)*x_avg + sin(theta_2)*y_avg));
-
-				end
-				
-				switch polarisation
-					
-					case 'p'
-
-						bk = tri_area/6 .* (di_ref .*(1/cyl_diel_const(i) - 1/di_ref) - (cyl_mag_const(i) - mag_ref)) .* k0.^2 .* di_ref .* H0r;
-						
-					case 's'
-						
-						bk = tri_area/6 .* (mag_ref .*(1/cyl_mag_const(i) - 1/mag_ref) - (cyl_diel_const(i) - di_ref)) .* k0.^2 .* mag_ref .* H0r;
-						
-				end
-
-				bv(tri_in_cyl) = bv(tri_in_cyl) + bk;
-				
 			end
+
+			switch polarisation
+
+				case 'p'
+
+					bk = tri_area/6 .* (di_ref .*(1/cyl_diel_const(i) - 1/di_ref) - (cyl_mag_const(i) - mag_ref)) .* k0.^2 .* di_ref .* H0r;
+
+				case 's'
+
+					bk = tri_area/6 .* (mag_ref .*(1/cyl_mag_const(i) - 1/mag_ref) - (cyl_diel_const(i) - di_ref)) .* k0.^2 .* mag_ref .* H0r;
+
+			end
+
+			bv(tri_in_cyl) = bv(tri_in_cyl) + bk;
 
 		end
 		
@@ -1026,7 +1020,7 @@ for k = 1:var_len
 	
 	Hv = M\bv;
 	
-	figure('Position',[10 200 500 400])
+	figure('Unit','normalized','Position',[0.05 0.25 0.4 0.5])
 	pdeplot(p,e,t,'xydata',abs(Hv.'))%,'Zdata',abs(Hv))
 	colormap gray %parula
 	hold on
@@ -1036,10 +1030,8 @@ for k = 1:var_len
 % 	H0vxy = cos(theta) * p(1,:) + sin(theta) * p(2,:);
 % 	H0v = exp(1i*k0*n1*H0vxy).';
 	Hvn = Hv + H0v;
-	
-	screensize = get(0,'ScreenSize');
 
-	figure('Position',[(screensize(3)-500-10) 200 500 400])
+	figure('Unit','normalized','Position',[(1-0.4-0.05) 0.25 0.4 0.5])
 	pdeplot(p,e,t,'xydata',abs(Hvn))%,'Zdata',abs(Hv))
 	colormap gray %parula
 	hold on
@@ -1048,7 +1040,7 @@ for k = 1:var_len
 
 % 	caxis([0 1.5])
 
-	asd
+	break
 
 	%% Plotting values of line down through structure
 	
