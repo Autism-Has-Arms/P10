@@ -33,6 +33,12 @@ classdef zone_determination < handle
 			
 			obj.env = find(sum(bt(:,1:(end - p.Results.enable_surface)),2) - p.Results.PML == 1).';
 			
+			if bt(obj.env(1),end)
+				
+				obj.env = fliplr(obj.env);
+				
+			end
+			
 			%% Cylinder faces
 			
 			cyl_geom = bt(:,(2 + p.Results.PML):(end - p.Results.enable_surface));
@@ -63,9 +69,17 @@ classdef zone_determination < handle
 			
 			obj.cyl = [obj.cyl_whole reshape(obj.cyl_split.',1,[])];
 			
+			%% Perfectly Matched Layer
+			
 			if p.Results.PML
 			
 				obj.PML = find(sum(bt(:,1:end - p.Results.enable_surface),2) == 1).';
+				
+				if bt(obj.PML(1),end)
+					
+					obj.PML = fliplr(obj.PML);
+					
+				end
 				
 			end
 			

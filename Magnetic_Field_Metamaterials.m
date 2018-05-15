@@ -82,7 +82,11 @@ for k = 1:var_len
 		
 		r_circ = 1500;					% Radius of area.
 		
-		scatterers = [50 100 0 ; 50 -100 0 ; 50 0 100 ; 50 0 -100];		% [Radii ; Centre x-coordinates ; Centre y_coordinates] of scatterer.
+		r_scat = 50;
+		
+		sep_scat = 3;
+		
+		scatterers = 5;					% [Radii ; Centre x-coordinates ; Centre y_coordinates] of scatterer.
 		
 		if PML
 			
@@ -168,21 +172,33 @@ for k = 1:var_len
 	
 		%% Centres of cylinders
 
-		if strcmp(main_structure,'rectangle')
+		if strcmpi(main_structure,'rectangle')
 		
 			if rows_cyl == 0
 
 				tot_height = ul_spacing;
 
 			else
+				
+				obj_cent = cent_gen;
 
-				obj_cent = cent_gen(rows_cyl,cyl_period,area_width,cyl_pattern);
+				obj_cent.gen_cent_rect(rows_cyl,cyl_period,area_width,cyl_pattern);
 
 				area_height = 2*max(obj_cent.cent_y) + cyl_period;
 
 				tot_height = ul_spacing + area_height;
 
 			end
+			
+		elseif strcmpi(main_structure,'circle')
+			
+			obj_cent = cent_gen;
+			
+			n_col = 3;
+			rows_cyl = 4;
+			cyl_period = 200;
+			
+			obj_cent.gen_cent_circ(rows_cyl,cyl_period,n_col,'StructureShape','hexagonal','Cyl_pm','-');
 			
 		end
 
@@ -220,11 +236,20 @@ for k = 1:var_len
 			
 			obj_csg.create_csg('circle',[0 , 0],r_circ);
 			
-			for i = 1:size(scatterers,1)
 			
-				obj_csg.create_csg('circle',[scatterers(i,2) , scatterers(i,3)],scatterers(i,1));
+			r_cyl = 50;
+			
+			for i = 1:length(obj_cent.cent_x)
+				
+				obj_csg.create_csg('circle',[obj_cent.cent_x(i) , obj_cent.cent_y(i)],r_cyl);
 				
 			end
+			
+% 			for i = 1:size(scatterers,1)
+% 			
+% 				obj_csg.create_csg('circle',[scatterers(i,2) , scatterers(i,3)],scatterers(i,1));
+% 				
+% 			end
 			
 % 			obj_csg.create_csg('circle',[15 , 15],r_scat);
 
@@ -262,7 +287,7 @@ for k = 1:var_len
 		figure
 		pdegplot(dl,'EdgeLabels','on','FaceLabels','on')
 		axis equal
-% 		asd
+% 		break
 
 		model = createpde(1);
 
@@ -275,7 +300,7 @@ for k = 1:var_len
 		
 		obj_zone = zone_determination;
 		
-		obj_zone.zone_det(bt,'enable_surface',enable_surface,'PML',PML)
+		obj_zone.zone_det(bt,'enable_surface',enable_surface,'PML',PML);
 		
 		cyl_diel_const = di_const3 * ones(1,length(obj_zone.cyl));
 			
@@ -294,9 +319,13 @@ for k = 1:var_len
 		
 % 		[p,e,t] = MidPointFix({p,e,t});
 		
-		[p,e,t] = refinemesh(dl,p,e,t,obj_zone.cyl);
+		n_refine = 2;
+
+		for i = 1:n_refine
+
+			[p,e,t] = refinemesh(dl,p,e,t,obj_zone.cyl);
 		
-		[p,e,t] = refinemesh(dl,p,e,t,obj_zone.cyl);
+		end
 		
 % 		figure
 % 		pdemesh(p,e,t)
@@ -600,7 +629,7 @@ for k = 1:var_len
 
 			bk = [2 * bk(1) + bk(2) , bk(1) + 2 * bk(2)]/3;
 
-			bv(t(ind_peri,i)) = bv(t(ind_peri,i)) + bk.';	%<-- Husk vinkelafhængig.
+			bv(t(ind_peri,i)) = bv(t(ind_peri,i)) + bk.';
 
 			temp_mat = zeros(3);
 			temp_mat(ind_peri,ind_peri) = [2 1 ; 1 2];
@@ -807,7 +836,7 @@ for k = 1:var_len
 	if enable_surface
 	
 		vec_normal = [];
-		cyl_cent = scatterers(:,2:3);
+		cyl_cent = [obj_cent.cent_x ; obj_cent.cent_y].';%scatterers(:,2:3);
 		j = 0;
 		i_for = i_for + 1;
 
