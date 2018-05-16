@@ -1,9 +1,12 @@
 clear all
-close all
+% close all
 clc
 
 
 %% Initialisation
+
+r_i = load('Gold_refractive_index_file_J_C.m');
+% r_i = load('Silver_refractive_index_file_J_C.m');
 
 if exist('disppct.m','file') == 2 && exist('dispstat.m','file') == 2
 
@@ -70,23 +73,35 @@ for k = 1:var_len
 	hmax = 3;
 	
 	n1 = 1;
-	n2 = sqrt(12);%interp1(r_i(:,1),r_i(:,2)+r_i(:,3)*1i,lambda); % Cylinder
+	n2 = interp1(r_i(:,1),r_i(:,2)+r_i(:,3)*1i,lambda); % Cylinder
 	di_const1 = n1^2;
-	di_const2 = n2^2;
+	di_const2 = -7.3972 + 1.8145i;%n2^2;
 	mag_const1 = 1;
-	mag_const2 = 1;
+	mag_const2 = 1.0323 - 0.1828i;%1;
+	
+	r_scat = 12;	% Radius of scatterers.
 	
 	if strcmp(main_structure,'circle')
 		
 		hmax = hmax * 10;
+		r_env = 1500;					% Radius of environment.
 		
-		r_circ = 1500;					% Radius of area.
+		scat_array = false;				% Automatically create array of scatterers.
 		
-		r_scat = 50;
-		
-		sep_scat = 3;
-		
-		scatterers = 5;					% [Radii ; Centre x-coordinates ; Centre y_coordinates] of scatterer.
+		if scat_array
+			
+			n_col = 13;
+			rows_scat = 13;
+			period_scat = 30;
+			
+		else
+			
+			type_scat = 'rectangle';
+			rounded_corners = true;
+			scatterers = {390 390};		% {Width , Height} or {[x_start x_end] , [y_start , y_end]} or another permutation.
+% 			scatterers = {r_scat 0 0};	% {Radii , Centre x-coordinates , Centre y_coordinates] of scatterer.
+			
+		end
 		
 		if PML
 			
@@ -96,12 +111,12 @@ for k = 1:var_len
 		
 		if enable_surface
 			
-			surface_height = 0;
+			surface_y_coordinate = 0;
 			
 			n3 = n2;
 			di_const3 = di_const2;
 			mag_const3 = mag_const2;
-			n2 = 1.5; % Glass.
+			n2 = 1; % Glass.
 			di_const2 = n2^2;
 			mag_const2 = 1;
 			
@@ -128,29 +143,24 @@ for k = 1:var_len
 		
 	elseif strcmp(main_structure,'rectangle')
 		
-		rows_cyl = 11;
-		cyl_period = 30;
-		r_cyl = 7;
+		rows_scat = 11;
 		
 		ul_spacing = 1400;
-		area_width = 4*cyl_period;
+		area_width = 4*period_scat;
 		
 		cyl_pattern = 'hexagonal'; % ['line','hexagonal'].
 
-		if strcmp(cyl_pattern,'hexagonal') && r_cyl >= (cyl_period/sqrt(2))
+		if strcmp(cyl_pattern,'hexagonal') && r_scat >= (period_scat/sqrt(2))
 
-			error(['Overlapping cylinders. Radius (r_cyl) must be below r = ' , num2str(round(cyl_period/sqrt(2),2)) , '. (Hexagonal structure)'])
+			error(['Overlapping cylinders. Radius (r_cyl) must be below r = ' , num2str(round(period_scat/sqrt(2),2)) , '. (Hexagonal structure)'])
 
-		elseif strcmp(cyl_pattern,'line') && r_cyl >= (cyl_period/2)
+		elseif strcmp(cyl_pattern,'line') && r_scat >= (period_scat/2)
 
-			error(['Overlapping cylinders. Radius (r_cyl) must be below r = ' , num2str(round(cyl_period/2,2)) , '. (Line structure)'])
+			error(['Overlapping cylinders. Radius (r_cyl) must be below r = ' , num2str(round(period_scat/2,2)) , '. (Line structure)'])
 			
 		end
 		
 	end
-	
-	r_i = load('Gold_refractive_index_file_J_C.m');
-	% r_i = load('Silver_refractive_index_file_J_C.m');
 	
 	% Minor calculations
 	
@@ -174,7 +184,7 @@ for k = 1:var_len
 
 		if strcmpi(main_structure,'rectangle')
 		
-			if rows_cyl == 0
+			if rows_scat == 0
 
 				tot_height = ul_spacing;
 
@@ -182,23 +192,19 @@ for k = 1:var_len
 				
 				obj_cent = cent_gen;
 
-				obj_cent.gen_cent_rect(rows_cyl,cyl_period,area_width,cyl_pattern);
+				obj_cent.gen_cent_rect(rows_scat,period_scat,area_width,cyl_pattern);
 
-				area_height = 2*max(obj_cent.cent_y) + cyl_period;
+				area_height = 2*max(obj_cent.cent_y) + period_scat;
 
 				tot_height = ul_spacing + area_height;
 
 			end
 			
-		elseif strcmpi(main_structure,'circle')
+		elseif strcmpi(main_structure,'circle') && scat_array
 			
 			obj_cent = cent_gen;
 			
-			n_col = 3;
-			rows_cyl = 4;
-			cyl_period = 200;
-			
-			obj_cent.gen_cent_circ(rows_cyl,cyl_period,n_col,'StructureShape','hexagonal','Cyl_pm','-');
+			obj_cent.gen_cent_circ(rows_scat,period_scat,n_col,'StructureShape','hexagonal','Cyl_pm','-');
 			
 		end
 
@@ -220,7 +226,7 @@ for k = 1:var_len
 
 	% 			a.create_csg('rectangle',area_width,[r_cyl , cent_cyl(2,i)]);
 
-				obj_csg.create_csg('circle',[obj_cent.cent_x(i) ; obj_cent.cent_y(i)],r_cyl);
+				obj_csg.create_csg('circle',[obj_cent.cent_x(i) ; obj_cent.cent_y(i)],r_scat);
 
 			end
 		
@@ -228,29 +234,60 @@ for k = 1:var_len
 			
 			if PML
 		
-				obj_csg.create_csg('circle',[0 0],r_circ + r_PML);
+				obj_csg.create_csg('circle',[0 0],r_env + r_PML);
 				
 			end
 			
 			obj_csg.sf = 'circ';
 			
-			obj_csg.create_csg('circle',[0 , 0],r_circ);
+			obj_csg.create_csg('circle',[0 , 0],r_env);
 			
-			
-			r_cyl = 50;
-			
-			for i = 1:length(obj_cent.cent_x)
+			if scat_array
+
+				for i = 1:length(obj_cent.cent_x)
+
+					obj_csg.create_csg('circle',[obj_cent.cent_x(i) , obj_cent.cent_y(i)],r_scat);
+
+				end
 				
-				obj_csg.create_csg('circle',[obj_cent.cent_x(i) , obj_cent.cent_y(i)],r_cyl);
+			else
+			
+				for i = 1:size(scatterers,1)
+					
+					if strcmpi(type_scat,'rectangle')
+						
+						obj_csg.create_csg('rectangle',scatterers{i,1},scatterers{i,2});
+						
+					elseif strcmpi(type_scat,'circle')
+
+						obj_csg.create_csg('circle',[scatterers{i,2} , scatterers{i,3}],scatterers{i,1});
+						
+					end
+
+				end
+			
+			end
+			
+			if rounded_corners
+			
+				edge_minus = 10;
+				
+				circ_temp = scatterers{1}/2-edge_minus;
+
+				circ_cent = [circ_temp -circ_temp circ_temp -circ_temp ; circ_temp circ_temp -circ_temp -circ_temp];
+
+				obj_csg.create_csg('circle',[circ_cent(1,1) , circ_cent(2,1)],edge_minus)
+
+				obj_csg.create_csg('circle',[circ_cent(1,2) , circ_cent(2,2)],edge_minus)
+
+				obj_csg.create_csg('circle',[circ_cent(1,3) , circ_cent(2,3)],edge_minus)
+
+				obj_csg.create_csg('circle',[circ_cent(1,4) , circ_cent(2,4)],edge_minus)
 				
 			end
 			
-% 			for i = 1:size(scatterers,1)
-% 			
-% 				obj_csg.create_csg('circle',[scatterers(i,2) , scatterers(i,3)],scatterers(i,1));
-% 				
-% 			end
-			
+% 			obj_csg.create_csg('circle',[0 , 0],165);
+
 % 			obj_csg.create_csg('circle',[15 , 15],r_scat);
 
 % 			obj_csg.create_csg('circle',[0 , 0],r_scat * (1 + 1/4));
@@ -261,11 +298,11 @@ for k = 1:var_len
 				
 				if PML
 				
-					obj_csg.create_csg('rectangle',2*(r_circ + r_PML),[surface_height , -(r_circ + r_PML)]);
+					obj_csg.create_csg('rectangle',2*(r_env + r_PML),[surface_y_coordinate , -(r_env + r_PML)]);
 					
 				else
 					
-					obj_csg.create_csg('rectangle',2*r_circ,[surface_height , -r_circ]);
+					obj_csg.create_csg('rectangle',2*r_env,[surface_y_coordinate , -r_env]);
 					
 				end
 				
@@ -278,6 +315,41 @@ for k = 1:var_len
 
 		[dl,bt] = decsg(obj_csg.geom,obj_csg.sf,obj_csg.ns);
 		
+		if rounded_corners
+			
+			face_label = zeros(1,size(circ_cent,2));
+			circ_edge_keep = zeros(1,size(circ_cent,2));
+			ind_edge_rem = zeros(1,5*4);
+			
+			for i = 1:size(circ_cent,2)
+		
+				ind_circ = find(sum(round(dl(8:9,:)) == circ_cent(:,i)) == 2);
+				
+				face_lr = dl(6:7,ind_circ);
+				
+				face_not_in_circ = ~[all(all(repmat(face_lr(1,:),size(circ_cent,2),1) == repmat(face_lr(1,:),size(circ_cent,2),1).')) ; ...
+								  all(all(repmat(face_lr(2,:),size(circ_cent,2),1) == repmat(face_lr(2,:),size(circ_cent,2),1).'))];
+				
+				face_pos = sum(repmat(face_lr(face_not_in_circ,:),size(circ_cent,2),1) == repmat(face_lr(face_not_in_circ,:),size(circ_cent,2),1).') == 1;
+				
+				face_label(i) = face_lr(face_not_in_circ,face_pos);
+				
+				ind_of_face = logical(sum(face_lr == face_label(i)));
+				
+				circ_edge_keep = ind_circ(ind_of_face);
+				
+				ind_edge_face = find(sum(dl(6:7,:) == face_label(i)));
+				
+				ind_edge_rem(5*(i-1)+(1:2)) = ind_edge_face(ind_edge_face ~= circ_edge_keep);
+				
+				ind_edge_rem(5*(i-1)+(3:5)) = ind_circ(~ind_of_face);
+				
+			end
+			
+			[dl,bt] = csgdel(dl,bt,ind_edge_rem);
+		
+		end
+		
 % 		if enable_surface
 % 		
 % 			[dl,bt] = csgdel(dl,bt,[1 2 3 4]);
@@ -287,7 +359,7 @@ for k = 1:var_len
 		figure
 		pdegplot(dl,'EdgeLabels','on','FaceLabels','on')
 		axis equal
-% 		break
+		break
 
 		model = createpde(1);
 
@@ -351,13 +423,13 @@ for k = 1:var_len
 			
 			if PML
 				
-				ind_PML = edge_ind({p,e,t},'r',r_circ + r_PML);
+				ind_PML = edge_ind({p,e,t},'r',r_env + r_PML);
 				
 				n_for = 2*var_len;
 				
 			else
 			
-				ind_peri_edge = edge_ind({p,e,t},'r',r_circ);
+				ind_peri_edge = edge_ind({p,e,t},'r',r_env);
 
 				n_for = var_len;
 			
@@ -472,7 +544,7 @@ for k = 1:var_len
 			
 			r = sqrt(x_mid_tri.^2 + y_mid_tri.^2);
 			
-			r_0 = r_circ;
+			r_0 = r_env;
 			
 			sigma_0 = 6*log(10)/(2*pi/lambda*r_PML^3);%4*log(10)/(k0*(r_PML.^2)*(diel_const.^2));
 
@@ -587,7 +659,7 @@ for k = 1:var_len
 			
 			% Round result to 2 decimal places.
 			
-			ind_peri = abs(round(ind_peri,2) - r_circ) < cc_length/20;
+			ind_peri = abs(round(ind_peri,2) - r_env) < cc_length/20;
 %{
 			% Extend arrays into matrices and compare the indices.
 			
@@ -625,7 +697,7 @@ for k = 1:var_len
 
 			E0 = exp(1i * k0 * sqrt(diel_const) * fun_ang);
 				
-			bk = ((1 - fun_ang/r_circ) * 1i * k0 * sqrt(diel_const) - 1/(2 * r_circ)) .* E0 * edge_length/(2 * diel_const);
+			bk = ((1 - fun_ang/r_env) * 1i * k0 * sqrt(diel_const) - 1/(2 * r_env)) .* E0 * edge_length/(2 * diel_const);
 
 			bk = [2 * bk(1) + bk(2) , bk(1) + 2 * bk(2)]/3;
 
@@ -634,7 +706,7 @@ for k = 1:var_len
 			temp_mat = zeros(3);
 			temp_mat(ind_peri,ind_peri) = [2 1 ; 1 2];
 
-			C = (edge_length/6 * (1i * k0 * sqrt(diel_const) - 1/(2 * r_circ)) * temp_mat)/diel_const;
+			C = (edge_length/6 * (1i * k0 * sqrt(diel_const) - 1/(2 * r_env)) * temp_mat)/diel_const;
 
 			Mk = Mk + C;
 
@@ -779,7 +851,7 @@ for k = 1:var_len
 
 				% Find which two of the indices are on the periphery.
 
-				ind_peri = abs(round(ind_peri,2) - (r_circ + r_PML)) < cc_length/20;
+				ind_peri = abs(round(ind_peri,2) - (r_env + r_PML)) < cc_length/20;
 				
 				% Indices in 'p'.
 				
@@ -836,7 +908,17 @@ for k = 1:var_len
 	if enable_surface
 	
 		vec_normal = [];
-		cyl_cent = [obj_cent.cent_x ; obj_cent.cent_y].';%scatterers(:,2:3);
+		
+		if scat_array
+		
+			scat_cent = [obj_cent.cent_x ; obj_cent.cent_y].';
+			
+		else
+			
+			scat_cent = scatterers(:,2:3);
+			
+		end
+		
 		j = 0;
 		i_for = i_for + 1;
 
@@ -952,12 +1034,12 @@ for k = 1:var_len
 			tri_area = abs((tri_cyl_y(xy_123_vals(3,:)) - tri_cyl_y(xy_123_vals(1,:)))...
 						.* (tri_cyl_x(xy_123_vals(2,:)) - tri_cyl_x(xy_123_vals(1,:)))...
 						 - (tri_cyl_y(xy_123_vals(2,:)) - tri_cyl_y(xy_123_vals(1,:)))...
-						.* (tri_cyl_x(xy_123_vals(3,:)) - tri_cyl_x(xy_123_vals(1,:))));
+						.* (tri_cyl_x(xy_123_vals(3,:)) - tri_cyl_x(xy_123_vals(1,:))))/2;
 
 			x_avg = (tri_cyl_x(xy_123_vals(1,:)) + tri_cyl_x(xy_123_vals(2,:)) + tri_cyl_x(xy_123_vals(3,:)))/3;
 			y_avg = (tri_cyl_y(xy_123_vals(1,:)) + tri_cyl_y(xy_123_vals(2,:)) + tri_cyl_y(xy_123_vals(3,:)))/3;
 
-			if mean(y_avg) > surface_height
+			if mean(y_avg) > surface_y_coordinate
 
 				di_ref = env_diel_const(1);
 
@@ -980,15 +1062,19 @@ for k = 1:var_len
 
 				case 'p'
 
-					bk = tri_area/6 .* (di_ref .*(1/cyl_diel_const(i) - 1/di_ref) - (cyl_mag_const(i) - mag_ref)) .* k0.^2 .* di_ref .* H0r;
+					bk = tri_area*(2/6) .* (di_ref .*(1/cyl_diel_const(i) - 1/di_ref) - (cyl_mag_const(i) - mag_ref)) .* k0.^2 .* di_ref .* H0r;
 
 				case 's'
 
-					bk = tri_area/6 .* (mag_ref .*(1/cyl_mag_const(i) - 1/mag_ref) - (cyl_diel_const(i) - di_ref)) .* k0.^2 .* mag_ref .* H0r;
+					bk = tri_area*(2/6) .* (mag_ref .*(1/cyl_mag_const(i) - 1/mag_ref) - (cyl_diel_const(i) - di_ref)) .* k0.^2 .* mag_ref .* H0r;
 
 			end
+			
+			for j = 1:length(bk)
 
-			bv(tri_in_cyl) = bv(tri_in_cyl) + bk;
+				bv(tri_in_cyl(:,j)) = bv(tri_in_cyl(:,j)) + bk(j);
+				
+			end
 
 		end
 		
@@ -1001,7 +1087,7 @@ for k = 1:var_len
 			x_vec = p(1,i);
 			y_vec = p(2,i);
 			
-			if y_vec >= surface_height
+			if y_vec >= surface_y_coordinate
 				
 				ref_ind = sqrt(di_const1);
 				

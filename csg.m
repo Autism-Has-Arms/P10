@@ -38,15 +38,19 @@ classdef csg < handle
 					
 					type_char = 'rect';
 					
-					if length(b) == 1
+					if length(a) == 1
 					
-						temp_geom = [3 , 4 , a/2 , -a/2 , -a/2 , a/2 , b/2 , b/2 , -b/2 , -b/2];
-						
-					else
-						
-						temp_geom = [3 , 4 , a/2 , -a/2 , -a/2 , a/2 , b(1) , b(1) , b(2) , b(2)];
+						a = [a/2 -a/2];
 						
 					end
+					
+					if length(b) == 1
+						
+						b = [b/2 -b/2];
+						
+					end
+					
+					temp_geom = [3 , 4 , a(1) , a(2) , a(2) , a(1) , b(1) , b(1) , b(2) , b(2)];
 					
 					obj.geom = [obj.geom' ; temp_geom]';
 					
