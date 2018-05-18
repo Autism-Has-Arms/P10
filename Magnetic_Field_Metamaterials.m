@@ -56,7 +56,7 @@ for k = 1:var_len
 	
 	main_structure = 'circle';	% 'circle' or 'rectangle'.
 	
-	polarisation = 's';			% 'p' or 's'.
+	polarisation = 'p';			% 'p' or 's'.
 	
 	PML = true;					% Include Perfectly-Matched Layer.
 	
@@ -70,14 +70,14 @@ for k = 1:var_len
 	
 	% Determines maximum size of elements. Therefore larger values of hmax
 	% creates fewer elements.
-	hmax = 3;
+	hmax = 2;
 	
 	n1 = 1;
-	n2 = interp1(r_i(:,1),r_i(:,2)+r_i(:,3)*1i,lambda); % Cylinder
+	n2 = 3.4272 + 0.0150i; %interp1(r_i(:,1),r_i(:,2)+r_i(:,3)*1i,lambda); % Cylinder
 	di_const1 = n1^2;
-	di_const2 = -7.3972 + 1.8145i;%n2^2;
+	di_const2 = n2^2;
 	mag_const1 = 1;
-	mag_const2 = 1.0323 - 0.1828i;%1;
+	mag_const2 = 1;
 	
 	r_scat = 12;	% Radius of scatterers.
 	
@@ -266,23 +266,23 @@ for k = 1:var_len
 
 				end
 			
-			end
+				if rounded_corners
 			
-			if rounded_corners
-			
-				edge_minus = 10;
+					edge_minus = 10;
+
+					circ_temp = scatterers{1}/2-edge_minus;
+
+					circ_cent = [circ_temp -circ_temp circ_temp -circ_temp ; circ_temp circ_temp -circ_temp -circ_temp];
+
+					obj_csg.create_csg('circle',[circ_cent(1,1) , circ_cent(2,1)],edge_minus)
+
+					obj_csg.create_csg('circle',[circ_cent(1,2) , circ_cent(2,2)],edge_minus)
+
+					obj_csg.create_csg('circle',[circ_cent(1,3) , circ_cent(2,3)],edge_minus)
+
+					obj_csg.create_csg('circle',[circ_cent(1,4) , circ_cent(2,4)],edge_minus)
 				
-				circ_temp = scatterers{1}/2-edge_minus;
-
-				circ_cent = [circ_temp -circ_temp circ_temp -circ_temp ; circ_temp circ_temp -circ_temp -circ_temp];
-
-				obj_csg.create_csg('circle',[circ_cent(1,1) , circ_cent(2,1)],edge_minus)
-
-				obj_csg.create_csg('circle',[circ_cent(1,2) , circ_cent(2,2)],edge_minus)
-
-				obj_csg.create_csg('circle',[circ_cent(1,3) , circ_cent(2,3)],edge_minus)
-
-				obj_csg.create_csg('circle',[circ_cent(1,4) , circ_cent(2,4)],edge_minus)
+				end
 				
 			end
 			
@@ -315,7 +315,7 @@ for k = 1:var_len
 
 		[dl,bt] = decsg(obj_csg.geom,obj_csg.sf,obj_csg.ns);
 		
-		if rounded_corners
+		if ~scat_array && rounded_corners
 			
 			face_label = zeros(1,size(circ_cent,2));
 			circ_edge_keep = zeros(1,size(circ_cent,2));
@@ -359,7 +359,7 @@ for k = 1:var_len
 		figure
 		pdegplot(dl,'EdgeLabels','on','FaceLabels','on')
 		axis equal
-		break
+% 		break
 
 		model = createpde(1);
 
@@ -903,21 +903,29 @@ for k = 1:var_len
 	end
 	
 
-	%% Create normal-vector at edge.
+	%% Contribution from all cylinder edges.
 	
 	if enable_surface
 	
 		vec_normal = [];
 		
-		if scat_array
-		
-			scat_cent = [obj_cent.cent_x ; obj_cent.cent_y].';
-			
-		else
-			
-			scat_cent = scatterers(:,2:3);
-			
-		end
+% 		if scat_array
+% 		
+% 			scat_cent = [obj_cent.cent_x ; obj_cent.cent_y].';
+% 			
+% 		else
+% 			
+% 			if size(scatterers,2) == 2
+% 				
+% 				scat_cent = [0 ; 0];
+% 				
+% 			else
+% 			
+% 				scat_cent = scatterers{:,2:3};
+% 				
+% 			end
+% 			
+% 		end
 		
 		j = 0;
 		i_for = i_for + 1;
@@ -932,6 +940,7 @@ for k = 1:var_len
 				vec = p(:,e(1:2,i));
 				vec_orth = [vec(2,2) - vec(2,1) ; (vec(1,2) - vec(1,1))] .* (l_or_r - ~l_or_r);
 				vec_normal = vec_orth/norm(vec_orth);% + cyl_cent(:,logical(sum(e(6:7,i) == faces_cyl,1)));
+				normal_vec(:,j) = vec_normal+mean(vec,2);
 				
 				if all(l_or_r)
 					
@@ -1022,7 +1031,7 @@ for k = 1:var_len
 
 		end
 	
-	%% Over all cylinders.
+	%% Contribution from triangles in all cylinders.
 	
 		for i = 1:length(obj_zone.cyl)
 			
@@ -1154,6 +1163,10 @@ for k = 1:var_len
 	axis equal
 
 % 	caxis([0 1.5])
+
+	figure;pdemesh(p,e,t)
+	hold on
+	plot(normal_vec(1,:),normal_vec(2,:),'*')
 
 	break
 
