@@ -55,12 +55,13 @@ for k = 1:var_len
 	%% Parameters
 	
 	main_structure = 'circle';	% 'circle' or 'rectangle'.
+	scat_type = 'rectangle';	% 'circle' or 'rectangle'.
 	
 	polarisation = 'p';			% 'p' or 's'.
 	
 	PML = true;					% Include Perfectly-Matched Layer.
 	
-	enable_surface = true;
+	enable_surface = true;		% Enable surface.
 	
 	geometric_order = 'linear'; % 'linear' or 'quadratic'.
 
@@ -70,7 +71,7 @@ for k = 1:var_len
 	
 	% Determines maximum size of elements. Therefore larger values of hmax
 	% creates fewer elements.
-	hmax = 2;
+	hmax = 3;
 	
 	n1 = 1;
 	n2 = 3.4272 + 0.0150i; %interp1(r_i(:,1),r_i(:,2)+r_i(:,3)*1i,lambda); % Cylinder
@@ -79,14 +80,24 @@ for k = 1:var_len
 	mag_const1 = 1;
 	mag_const2 = 1;
 	
-	r_scat = 12;	% Radius of scatterers.
+	if strcmpi(scat_type,'circle')
+	
+		r_scat = 12;	% Radius of scatterers.
+		
+	elseif strcmpi(scat_type,'rectangle')
+
+		scat_width = 24;
+		scat_height = 24;
+		rounded_corners = true;
+
+	end
 	
 	if strcmp(main_structure,'circle')
 		
 		hmax = hmax * 10;
 		r_env = 1500;					% Radius of environment.
 		
-		scat_array = false;				% Automatically create array of scatterers.
+		scat_array = true;
 		
 		if scat_array
 			
@@ -94,18 +105,19 @@ for k = 1:var_len
 			rows_scat = 13;
 			period_scat = 30;
 			
-		else
+		elseif strcmpi(scat_type,'rectangle')
+
+			scatterers = {scat_width scat_height};	% {Width , Height} or {[x_start x_end] , [y_start , y_end]} or another permutation.
+				
+		elseif strcmpi(scat_type,'circle')
 			
-			type_scat = 'rectangle';
-			rounded_corners = true;
-			scatterers = {390 390};		% {Width , Height} or {[x_start x_end] , [y_start , y_end]} or another permutation.
-% 			scatterers = {r_scat 0 0};	% {Radii , Centre x-coordinates , Centre y_coordinates] of scatterer.
+			scatterers = {r_scat 0 0};	% {Radii , Centre x-coordinates , Centre y_coordinates] of scatterer.
 			
 		end
 		
 		if PML
 			
-			r_PML = 800;				% Distanace from r_circ.
+			r_PML = 800;	% Distanace from r_circ.
 			
 		end
 		
@@ -116,7 +128,7 @@ for k = 1:var_len
 			n3 = n2;
 			di_const3 = di_const2;
 			mag_const3 = mag_const2;
-			n2 = 1; % Glass.
+			n2 = 1;	% Glass.
 			di_const2 = n2^2;
 			mag_const2 = 1;
 			
@@ -182,29 +194,35 @@ for k = 1:var_len
 	
 		%% Centres of cylinders
 
-		if strcmpi(main_structure,'rectangle')
+		if scat_array
+			
+			obj_cent = cent_gen('MainStruct',main_structure,'ScatStruct',scat_type);
 		
-			if rows_scat == 0
+			if strcmpi(obj_cent.main_struct,'rectangle')
 
-				tot_height = ul_spacing;
+				if rows_scat == 0
+
+					tot_height = ul_spacing;
+
+				else
+
+					obj_cent = cent_gen;
+
+					obj_cent.gen_cent(rows_scat,period_scat,area_width,'StructShape',cyl_pattern);
+
+					area_height = 2*max(obj_cent.cent_y) + period_scat;
+
+					tot_height = ul_spacing + area_height;
+
+				end
 
 			else
-				
+
 				obj_cent = cent_gen;
 
-				obj_cent.gen_cent_rect(rows_scat,period_scat,area_width,cyl_pattern);
-
-				area_height = 2*max(obj_cent.cent_y) + period_scat;
-
-				tot_height = ul_spacing + area_height;
-
+				obj_cent.gen_cent(rows_scat,period_scat,n_col,'StructShape','hexagonal','Scat_pm','-');
+			
 			end
-			
-		elseif strcmpi(main_structure,'circle') && scat_array
-			
-			obj_cent = cent_gen;
-			
-			obj_cent.gen_cent_circ(rows_scat,period_scat,n_col,'StructureShape','hexagonal','Cyl_pm','-');
 			
 		end
 
@@ -245,8 +263,16 @@ for k = 1:var_len
 			if scat_array
 
 				for i = 1:length(obj_cent.cent_x)
+					
+					if strcmpi(scat_type,'circle')
 
-					obj_csg.create_csg('circle',[obj_cent.cent_x(i) , obj_cent.cent_y(i)],r_scat);
+						obj_csg.create_csg('circle',[obj_cent.cent_x(i) , obj_cent.cent_y(i)],r_scat);
+						
+					else
+						
+						obj_csg.create_csg('rectangle',scat_width,scat_height,'Centre',[obj_cent.cent_x(i) , obj_cent.cent_y(i)]);
+						
+					end
 
 				end
 				
@@ -254,36 +280,42 @@ for k = 1:var_len
 			
 				for i = 1:size(scatterers,1)
 					
-					if strcmpi(type_scat,'rectangle')
+					if strcmpi(scat_type,'rectangle')
 						
 						obj_csg.create_csg('rectangle',scatterers{i,1},scatterers{i,2});
 						
-					elseif strcmpi(type_scat,'circle')
+					elseif strcmpi(scat_type,'circle')
 
 						obj_csg.create_csg('circle',[scatterers{i,2} , scatterers{i,3}],scatterers{i,1});
 						
 					end
 
 				end
-			
-				if rounded_corners
-			
-					edge_minus = 10;
-
-					circ_temp = scatterers{1}/2-edge_minus;
-
-					circ_cent = [circ_temp -circ_temp circ_temp -circ_temp ; circ_temp circ_temp -circ_temp -circ_temp];
-
-					obj_csg.create_csg('circle',[circ_cent(1,1) , circ_cent(2,1)],edge_minus)
-
-					obj_csg.create_csg('circle',[circ_cent(1,2) , circ_cent(2,2)],edge_minus)
-
-					obj_csg.create_csg('circle',[circ_cent(1,3) , circ_cent(2,3)],edge_minus)
-
-					obj_csg.create_csg('circle',[circ_cent(1,4) , circ_cent(2,4)],edge_minus)
 				
+			end
+			
+			if strcmpi(scat_type,'rectangle') && rounded_corners
+
+				r_corner_circ = (scat_width+scat_height)/12;
+				
+				x_offset = scat_width/2 - r_corner_circ;
+				y_offset = scat_height/2 - r_corner_circ;
+				
+				saved_corner_cent = cell(length(obj_cent.cent_x),1);
+
+				for i = 1:length(obj_cent.cent_x)
+
+					corner_circ_cent = [ obj_cent.cent_x(i) + x_offset .* [1 -1 -1 1] ; obj_cent.cent_y(i) + y_offset .* [1 1 -1 -1] ];
+
+					obj_csg.create_csg('circle',[corner_circ_cent(1,1) , corner_circ_cent(2,1)],r_corner_circ)
+					obj_csg.create_csg('circle',[corner_circ_cent(1,2) , corner_circ_cent(2,2)],r_corner_circ)
+					obj_csg.create_csg('circle',[corner_circ_cent(1,3) , corner_circ_cent(2,3)],r_corner_circ)
+					obj_csg.create_csg('circle',[corner_circ_cent(1,4) , corner_circ_cent(2,4)],r_corner_circ)
+					
+					saved_corner_cent{i} = corner_circ_cent;
+
 				end
-				
+
 			end
 			
 % 			obj_csg.create_csg('circle',[0 , 0],165);
@@ -314,35 +346,41 @@ for k = 1:var_len
 		%% Create Model, Geometry & Mesh
 
 		[dl,bt] = decsg(obj_csg.geom,obj_csg.sf,obj_csg.ns);
-		
-		if ~scat_array && rounded_corners
+
+		if strcmpi(scat_type,'rectangle') && rounded_corners
+
+			ind_edge_rem = zeros(1,4.*5.*size(obj_cent.cent_x,2));
 			
-			face_label = zeros(1,size(circ_cent,2));
-			circ_edge_keep = zeros(1,size(circ_cent,2));
-			ind_edge_rem = zeros(1,5*4);
+			for j = 1:length(saved_corner_cent)
+				
+				corner_circ_cent = saved_corner_cent{j};
+% 				face_label = zeros(1,5*size(corner_circ_cent,2));
+				circ_edge_keep = zeros(1,size(corner_circ_cent,2));
 			
-			for i = 1:size(circ_cent,2)
-		
-				ind_circ = find(sum(round(dl(8:9,:)) == circ_cent(:,i)) == 2);
-				
-				face_lr = dl(6:7,ind_circ);
-				
-				face_not_in_circ = ~[all(all(repmat(face_lr(1,:),size(circ_cent,2),1) == repmat(face_lr(1,:),size(circ_cent,2),1).')) ; ...
-								  all(all(repmat(face_lr(2,:),size(circ_cent,2),1) == repmat(face_lr(2,:),size(circ_cent,2),1).'))];
-				
-				face_pos = sum(repmat(face_lr(face_not_in_circ,:),size(circ_cent,2),1) == repmat(face_lr(face_not_in_circ,:),size(circ_cent,2),1).') == 1;
-				
-				face_label(i) = face_lr(face_not_in_circ,face_pos);
-				
-				ind_of_face = logical(sum(face_lr == face_label(i)));
-				
-				circ_edge_keep = ind_circ(ind_of_face);
-				
-				ind_edge_face = find(sum(dl(6:7,:) == face_label(i)));
-				
-				ind_edge_rem(5*(i-1)+(1:2)) = ind_edge_face(ind_edge_face ~= circ_edge_keep);
-				
-				ind_edge_rem(5*(i-1)+(3:5)) = ind_circ(~ind_of_face);
+				for i = 1:size(corner_circ_cent,2)
+
+					ind_circ = find(sum(round(dl(8:9,:)) == corner_circ_cent(:,i)) == 2);
+
+					face_lr = dl(6:7,ind_circ);
+
+					face_not_in_circ = ~[all(all(repmat(face_lr(1,:),size(corner_circ_cent,2),1) == repmat(face_lr(1,:),size(corner_circ_cent,2),1).')) ; ...
+										 all(all(repmat(face_lr(2,:),size(corner_circ_cent,2),1) == repmat(face_lr(2,:),size(corner_circ_cent,2),1).'))];
+
+					face_pos = sum(repmat(face_lr(face_not_in_circ,:),size(corner_circ_cent,2),1) == repmat(face_lr(face_not_in_circ,:),size(corner_circ_cent,2),1).') == 1;
+
+					face_label = face_lr(face_not_in_circ,face_pos);
+
+					ind_of_face = logical(sum(face_lr == face_label));
+
+					circ_edge_keep = ind_circ(ind_of_face);
+
+					ind_edge_face = find(sum(dl(6:7,:) == face_label));
+
+					ind_edge_rem((j-1)*5*4 + 5*(i-1) + (1:2)) = ind_edge_face(ind_edge_face ~= circ_edge_keep);
+
+					ind_edge_rem((j-1)*5*4 + 5*(i-1) + (3:5)) = ind_circ(~ind_of_face);
+
+				end
 				
 			end
 			
@@ -357,9 +395,9 @@ for k = 1:var_len
 % 		end
 
 		figure
-		pdegplot(dl,'EdgeLabels','on','FaceLabels','on')
+		pdegplot(dl)%,'EdgeLabels','on','FaceLabels','on')
 		axis equal
-% 		break
+		break
 
 		model = createpde(1);
 
@@ -649,42 +687,15 @@ for k = 1:var_len
 			% Find which two indices are on the periphery.
 			
 			% Overall length is found.
-			
 			ind_peri = sqrt(xy_val(1,:).^2 + xy_val(2,:).^2);
 			
 			% Corner-corner average length.
-			
 			cc_length = sqrt(diff(xy_val(1,[1 2 3 1])).^2 + diff(xy_val(2,[1 2 3 1])).^2);
 			cc_length = sum(cc_length)/length(cc_length);
 			
 			% Round result to 2 decimal places.
-			
 			ind_peri = abs(round(ind_peri,2) - r_env) < cc_length/20;
-%{
-			% Extend arrays into matrices and compare the indices.
 			
-% 			ind_peri = repmat(ind_peri,length(ind_peri),1) == repmat(ind_peri,length(ind_peri),1).';
-			
-			% Summarise the rows and subtract 1 to find the columns of the
-			% identical values. Values are converted to logicals values to
-			% enable indexing.
-			
-% 			ind_peri = logical(sum(ind_peri) - 1);
-
-			if strcmp(mesh.GeometricOrder,'linear')
-				
-				ind_num = find(ind_peri);
-
-				ind_corners = ind_num(ind_num <= 3);
-
-				ind_midpoint = ind_num(ind_num >= 4);
-				
-				edge_length = xy_val(:,ind_corners) - xy_val(:,ind_midpoint);
-				edge_length = sqrt(sum(edge_length.^2));
-				edge_length = edge_length(1);
-				
-			else
-%}
 			% Distance between points is found.
 			inter_point_dist = diff(xy_val(:,ind_peri),1,2);
 
@@ -744,27 +755,22 @@ for k = 1:var_len
 				ind_opposite = ind_right_edge;
 
 				% Check which two indices in xy_val have the same x value.
-
 				ind_same_xval = logical(sum(repmat(x_val,3,1) == repmat(x_val',1,3)) - 1);
 
 				% The corresponding indices in the 'p' array.
-
 				ind_in_p = t(ind_same_xval,i);
 
 				% Compare with saved indices to see check if point has already been
 				% considered.
-
 				if ~isempty(ind_saved) && any(any((ind_in_p == repmat(ind_saved,length(ind_in_p),1))'))
 
 					% Removes an index if it has already been counted.
-
 					ind_in_p = ind_in_p(not(any((ind_in_p == repmat(ind_saved,length(ind_in_p),1))')));
 
 				end
 
 				% Check whether the exclusion of duplicate indices empties the
 				% variable. If true, skip iteration.
-
 				if isempty(ind_in_p)
 
 					continue
@@ -772,33 +778,27 @@ for k = 1:var_len
 				end
 
 				% Save the indices to not count them multiple times.
-
 				ind_saved(length(ind_saved)+1:length(ind_saved)+length(ind_in_p)) = ind_in_p;
 
 				% Corresponding y values on current edge.
-
 				val_y_cur = p(2,ind_in_p);
 
 				% y values of all points on the opposite side along their
 				% indices in p. [y_value index_in_p].
-
 				val_y_op = [p(2,t(1:3,ind_opposite)) ; reshape(t(1:3,ind_opposite),[1 numel(t(1:3,ind_opposite))])]';
 
 				% Comparing y values and finding the indices of the minimum
 				% values.
-
 				[~,ind_min_op] = min(abs(val_y_cur - val_y_op(:,1)));
 
 				% The indices in 'p' where these minimum values are located.
 				% (The points on the opposite edge which are closest in height
 				% to the selected ones on the current edge).
-				
 				ind_p_close = val_y_op(ind_min_op,2);
 				
 				k_x = k0 * diel_const.^2 * sin(theta);
  
 				% Setting a row to zero.
-
 				M(ind_in_p,:) = 0;
 
 				M(sub2ind(size(M),ind_in_p,ind_in_p)) = 1;
@@ -841,36 +841,29 @@ for k = 1:var_len
 				% Find which two indices are on the periphery.
 			
 				% Overall length is found.
-
 				ind_peri = sqrt(xy_val(1,:).^2 + xy_val(2,:).^2);
 
 				% Corner-corner average length.
-
 				cc_length = sqrt(diff(xy_val(1,[1 2 3 1])).^2 + diff(xy_val(2,[1 2 3 1])).^2);
 				cc_length = sum(cc_length)/length(cc_length);
 
 				% Find which two of the indices are on the periphery.
-
 				ind_peri = abs(round(ind_peri,2) - (r_env + r_PML)) < cc_length/20;
 				
 				% Indices in 'p'.
-				
 				ind_in_p = t(ind_peri,i);
 				
 				% Compare with saved indices to see check if point has already been
 				% considered.
-
 				if ~isempty(ind_saved) && any(any((ind_in_p == repmat(ind_saved,length(ind_in_p),1))'))
 
 					% Removes an index if it has already been counted.
-
 					ind_in_p = ind_in_p(not(any((ind_in_p == repmat(ind_saved,length(ind_in_p),1))')));
 
 				end
 				
 				% Check whether the exclusion of duplicate indices empties the
 				% variable. If true, skip iteration.
-
 				if isempty(ind_in_p)
 
 					continue
@@ -878,7 +871,6 @@ for k = 1:var_len
 				end
 				
 				% Save the indices to not count them multiple times.
-
 				ind_saved(length(ind_saved)+1:length(ind_saved)+length(ind_in_p)) = ind_in_p;
 				
 				bv(ind_in_p) = 0;
@@ -909,38 +901,20 @@ for k = 1:var_len
 	
 		vec_normal = [];
 		
-% 		if scat_array
-% 		
-% 			scat_cent = [obj_cent.cent_x ; obj_cent.cent_y].';
-% 			
-% 		else
-% 			
-% 			if size(scatterers,2) == 2
-% 				
-% 				scat_cent = [0 ; 0];
-% 				
-% 			else
-% 			
-% 				scat_cent = scatterers{:,2:3};
-% 				
-% 			end
-% 			
-% 		end
-		
-		j = 0;
+% 		j = 0;
 		i_for = i_for + 1;
 
 		for i = 1:length(e(1,:))
 
 			if any(ismember(e(6:7,i),obj_zone.cyl))
 
-				j = j + 1;
+% 				j = j + 1;
 				l_or_r = logical(sum(e(6:7,i) == obj_zone.cyl,2));
 
 				vec = p(:,e(1:2,i));
 				vec_orth = [vec(2,2) - vec(2,1) ; (vec(1,2) - vec(1,1))] .* (l_or_r - ~l_or_r);
-				vec_normal = vec_orth/norm(vec_orth);% + cyl_cent(:,logical(sum(e(6:7,i) == faces_cyl,1)));
-				normal_vec(:,j) = vec_normal+mean(vec,2);
+				vec_normal = vec_orth/norm(vec_orth);
+% 				normal_vec(:,j) = vec_normal+mean(vec,2);
 				
 				if all(l_or_r)
 					
@@ -1031,7 +1005,7 @@ for k = 1:var_len
 
 		end
 	
-	%% Contribution from triangles in all cylinders.
+	%% Contribution from triangles in all scatterer on the total field.
 	
 		for i = 1:length(obj_zone.cyl)
 			
@@ -1125,23 +1099,6 @@ for k = 1:var_len
 	
 	end
 	
-% 	asd
-	
-% 	% Get edges with touching the face of one of the cylinders.
-% 	ind_edge_face = any(ismember(e(6:7,:),faces_cyl));
-% 	
-% 	% Get indices in 'p' of these edges' points
-% 	ind_p_edge = e(1:2,ind_edge_face);
-% 	
-% 	% Get all the triangle indices within one of the two cylinder faces.
-% 	ind_tri_face = any(t(end,:) == faces_cyl.');
-% 	
-% 	% Get indices in 'p' of these triangles' points.
-% 	ind_p_tri = t(1:end-1,ind_tri_face);
-% 	
-% 	% Get triangle indices which share 2 points with an edge.
-% 	ind_tri_share = sum(ismember(ind_p_tri,ind_p_edge)) == 2;
-	
 	Hv = M\bv;
 	
 	figure('Unit','normalized','Position',[0.05 0.25 0.4 0.5])
@@ -1164,9 +1121,9 @@ for k = 1:var_len
 
 % 	caxis([0 1.5])
 
-	figure;pdemesh(p,e,t)
-	hold on
-	plot(normal_vec(1,:),normal_vec(2,:),'*')
+% 	figure;pdemesh(p,e,t)
+% 	hold on
+% 	plot(normal_vec(1,:),normal_vec(2,:),'*')
 
 	break
 

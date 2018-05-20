@@ -28,9 +28,17 @@ classdef csg < handle
 	
 	methods
 		
-		function create_csg(obj,type,a,b)
-			
+		function create_csg(obj,type,a,b,varargin)
 			% create_csg - Geometric Generation.
+			
+			p = inputParser;
+			
+			default_values = [];
+			check_values = @(x) isreal(x);
+			
+			p.addParameter('Centre',default_values,check_values);
+			
+			parse(p,varargin{:})
 			
 			switch type
 				
@@ -38,19 +46,36 @@ classdef csg < handle
 					
 					type_char = 'rect';
 					
-					if length(a) == 1
+					if isempty(p.Results.Centre)
 					
-						a = [a/2 -a/2];
+						if length(a) == 1
+
+							a = [a/2 -a/2];
+
+						end
+
+						if length(b) == 1
+
+							b = [b/2 -b/2];
+
+						end
+					
+						temp_geom = [3 , 4 , a(1) , a(2) , a(2) , a(1) , b(1) , b(1) , b(2) , b(2)];
+						
+					else
+						
+						if length(a) ~= 1 && length(b) ~= 1
+							
+							error("'a' and 'b' must contain only one value.")
+							
+						end
+						
+						cent_x = p.Results.Centre(1);
+						cent_y = p.Results.Centre(2);
+						
+						temp_geom = [3 , 4 , cent_x+a/2 , cent_x-a/2 , cent_x-a/2 , cent_x+a/2 , cent_y+b/2 , cent_y+b/2 , cent_y-b/2 , cent_y-b/2];
 						
 					end
-					
-					if length(b) == 1
-						
-						b = [b/2 -b/2];
-						
-					end
-					
-					temp_geom = [3 , 4 , a(1) , a(2) , a(2) , a(1) , b(1) , b(1) , b(2) , b(2)];
 					
 					obj.geom = [obj.geom' ; temp_geom]';
 					

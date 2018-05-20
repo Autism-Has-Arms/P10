@@ -3,6 +3,8 @@ classdef cent_gen < handle
 	
 	properties
 		
+		main_struct
+		scat_struct
 		cent_x
 		cent_y
 		
@@ -10,7 +12,53 @@ classdef cent_gen < handle
 	
 	methods
 		
-		function gen_cent_rect(obj,rows_cyl,cyl_period,area_width,struct_shape)
+		function obj = cent_gen(varargin)
+			
+			p = inputParser;
+			
+			default_values = 'circle';
+			valid_values = {'circle','rectangle'};
+			check_values = @(x) any(strcmpi(x,valid_values));
+			
+			p.addParameter('MainStruct',default_values,check_values);
+			p.addParameter('ScatStruct',default_values,check_values);
+			
+			parse(p,varargin{:})
+			
+			obj.main_struct = p.Results.MainStruct;
+			obj.scat_struct = p.Results.ScatStruct;
+			
+		end
+		
+		function gen_cent(obj,rows_cyl,cyl_period,arg3,varargin)
+			
+			if strcmpi(obj.main_struct,'circle')
+				
+				n_col = arg3;
+				
+				obj.gen_cent_circ(rows_cyl,cyl_period,n_col,varargin{:})
+				
+			elseif strcmpi(obj.main_struct,'rectangle')
+				
+				area_width = arg3;
+				
+				obj.gen_cent_rect(rows_cyl,cyl_period,area_width,varargin{:})
+				
+			end
+			
+		end
+		
+		function gen_cent_rect(obj,rows_cyl,cyl_period,area_width,varargin)
+			
+			p = inputParser;
+			
+			default_values = 'line';
+			valid_values = {'line','hexagonal'};
+			check_values = @(x) any(strcmpi(x,valid_values));
+			
+			p.addParameter('StructShape',default_values,check_values);
+			
+			parse(p,varargin{:})
 			
 			insert = @(num, arr, pos) cat(2, arr(1:pos-1), num, arr(pos:end));
 			
@@ -38,7 +86,7 @@ classdef cent_gen < handle
 
 			end
 			
-			if strcmpi(struct_shape,'Line')
+			if strcmpi(struct_shape,'line')
 			
 				cyl_cent_x = zeros(1,rows_cyl);
 				
@@ -104,18 +152,18 @@ classdef cent_gen < handle
 			
 			p = inputParser;
 			
-			default_values = {'-' , 'Rectangular'};
-			valid_values = {{'Plus','+','Minus','-'},{'Rectangular','Hexagonal'}};
+			default_values = {'-' , 'rectangle'};
+			valid_values = {{'plus','+','minus','-'},{'rectangle','hexagonal'}};
 			check_values = {@(x) any(strcmpi(x,valid_values{1})) , @(x) any(strcmpi(x,valid_values{2}))};
 			
-			p.addParameter('Cyl_pm',default_values{1},check_values{1});
-			p.addParameter('StructureShape',default_values{2},check_values{2});
+			p.addParameter('Scat_pm',default_values{1},check_values{1});
+			p.addParameter('StructShape',default_values{2},check_values{2});
 			
 			parse(p,varargin{:})
 			
 			insert = @(num, arr, pos) cat(2, arr(1:pos-1), num, arr(pos:end));
 			
-			if any(strcmpi(p.Results.Cyl_pm,{'Plus','+'}))
+			if any(strcmpi(p.Results.Scat_pm,{'plus','+'}))
 				
 				pm = 1;
 				
@@ -124,8 +172,6 @@ classdef cent_gen < handle
 				pm = -1;
 				
 			end
-			
-			n_pm = n_col + pm;
 			
 			if mod(rows_cyl,2) == 0				% Checks if rows_cyl is an even number.
 
@@ -151,7 +197,7 @@ classdef cent_gen < handle
 
 			end
 			
-			if strcmpi(p.Results.StructureShape,'Rectangular')
+			if strcmpi(p.Results.StructShape,'rectangle')
 			
 				cyl_cent_x = zeros(1,rows_cyl);
 				
