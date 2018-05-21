@@ -1,5 +1,5 @@
 clear all
-% close all
+close all
 clc
 
 
@@ -354,7 +354,6 @@ for k = 1:var_len
 			for j = 1:length(saved_corner_cent)
 				
 				corner_circ_cent = saved_corner_cent{j};
-% 				face_label = zeros(1,5*size(corner_circ_cent,2));
 				circ_edge_keep = zeros(1,size(corner_circ_cent,2));
 			
 				for i = 1:size(corner_circ_cent,2)
@@ -387,17 +386,11 @@ for k = 1:var_len
 			[dl,bt] = csgdel(dl,bt,ind_edge_rem);
 		
 		end
-		
-% 		if enable_surface
-% 		
-% 			[dl,bt] = csgdel(dl,bt,[1 2 3 4]);
-% 			
-% 		end
 
-		figure
-		pdegplot(dl)%,'EdgeLabels','on','FaceLabels','on')
-		axis equal
-		break
+% 		figure
+% 		pdegplot(dl,'FaceLabels','on','EdgeLabels','on')
+% 		axis equal
+% 		break
 
 		model = createpde(1);
 
@@ -410,14 +403,14 @@ for k = 1:var_len
 		
 		obj_zone = zone_determination;
 		
-		obj_zone.zone_det(bt,'enable_surface',enable_surface,'PML',PML);
+		obj_zone.zone_det(dl,bt,'enable_surface',enable_surface,'PML',PML);
 		
 		cyl_diel_const = di_const3 * ones(1,length(obj_zone.cyl));
-			
+		
 		env_diel_const = [di_const1 di_const2]; % Corresponding dielectric constant
-
+		
 		cyl_mag_const = mag_const3 * ones(1,length(obj_zone.cyl));
-
+		
 		env_mag_const = [mag_const1 mag_const2];
 		
 		
