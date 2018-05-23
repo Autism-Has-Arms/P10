@@ -36,7 +36,7 @@ classdef zone_determination < handle
 			
 			if length(obj.env) ~= (1 + p.Results.enable_surface)
 				
-				warning('Cound not determine faces of environment. Please insert them manually.')
+				warning('Could not determine faces of environment. Please insert them manually.')
 				
 				temp_fig = figure('Unit','normalized','Position',[(1-0.4-0.1) 0.25 0.4 0.5]);
 				pdegplot(dl,'FaceLabels','on')

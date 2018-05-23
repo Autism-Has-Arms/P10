@@ -55,7 +55,7 @@ for k = 1:var_len
 	%% Parameters
 	
 	main_structure = 'circle';	% 'circle' or 'rectangle'.
-	scat_type = 'rectangle';	% 'circle' or 'rectangle'.
+	scat_type = 'circle';		% 'circle' or 'rectangle'.
 	
 	polarisation = 'p';			% 'p' or 's'.
 	
@@ -63,7 +63,7 @@ for k = 1:var_len
 	
 	enable_surface = true;		% Enable surface.
 	
-	geometric_order = 'linear'; % 'linear' or 'quadratic'.
+	geometric_order = 'linear';	% 'linear' or 'quadratic'.
 
 	lambda = 700;
 	
@@ -71,7 +71,7 @@ for k = 1:var_len
 	
 	% Determines maximum size of elements. Therefore larger values of hmax
 	% creates fewer elements.
-	hmax = 3;
+	hmax = 2;
 	
 	n1 = 1;
 	n2 = 3.4272 + 0.0150i; %interp1(r_i(:,1),r_i(:,2)+r_i(:,3)*1i,lambda); % Cylinder
@@ -82,7 +82,7 @@ for k = 1:var_len
 	
 	if strcmpi(scat_type,'circle')
 	
-		r_scat = 12;	% Radius of scatterers.
+		r_scat = 12; %sqrt((24.^2 - 4.^2 .* (4 - pi))./pi);	% Radius of scatterers.
 		
 	elseif strcmpi(scat_type,'rectangle')
 
@@ -97,21 +97,75 @@ for k = 1:var_len
 		hmax = hmax * 10;
 		r_env = 1500;					% Radius of environment.
 		
-		scat_array = true;
+		placement_style = 'random';		% 'manual', 'array' or 'random'.
 		
-		if scat_array
+		if strcmpi(placement_style,'array')
 			
 			n_col = 13;
 			rows_scat = 13;
 			period_scat = 30;
 			
-		elseif strcmpi(scat_type,'rectangle')
-
-			scatterers = {scat_width scat_height};	% {Width , Height} or {[x_start x_end] , [y_start , y_end]} or another permutation.
-				
-		elseif strcmpi(scat_type,'circle')
+		elseif strcmpi(placement_style,'random')
 			
-			scatterers = {r_scat 0 0};	% {Radii , Centre x-coordinates , Centre y_coordinates] of scatterer.
+			cyl_n = 100;
+			cyl_dist = 2.*r_scat + 10;
+			max_tries = 500;
+			
+			area_x = [-100 , 100];
+			area_y = [-100 , 100];
+			
+			cent_x = zeros(1,cyl_n);
+			cent_y = zeros(1,cyl_n);
+			
+			i = 1;
+			while i <= cyl_n
+				
+				cent_x(i) = area_x(1) + (area_x(2) - area_x(1)).*rand;
+				cent_y(i) = area_y(1) + (area_y(2) - area_y(1)).*rand;
+				
+				inter_dist = [cent_x(1:(i-1)) - cent_x(i) ; cent_y(1:(i-1)) - cent_y(i)];
+				
+				if i == 1 || all(sqrt(inter_dist(1,:).^2 + inter_dist(2,:).^2) > cyl_dist)
+					
+					i = i + 1;
+					
+					count = 0;
+					
+				else
+					
+					count = count + 1;
+					
+					if count == max_tries
+						
+						cent_x(cent_x == 0) = [];
+						cent_x(end) = [];
+						cent_y(cent_y == 0) = [];
+						cent_y(end) = [];
+						
+						
+						break
+						
+					end
+					
+				end
+				
+			end
+			
+			obj_cent = cent_gen;
+			obj_cent.cent_x = cent_x;
+			obj_cent.cent_y = cent_y;
+			
+		else
+			
+			if strcmpi(scat_type,'rectangle')
+
+				scatterers = {scat_width scat_height};	% {Width , Height} or {[x_start x_end] , [y_start , y_end]} or another permutation.
+
+			elseif strcmpi(scat_type,'circle')
+
+				scatterers = {r_scat 0 0};	% {Radii , Centre x-coordinates , Centre y_coordinates] of scatterer.
+
+			end
 			
 		end
 		
@@ -194,7 +248,7 @@ for k = 1:var_len
 	
 		%% Centres of cylinders
 
-		if scat_array
+		if strcmpi(placement_style,'array')
 			
 			obj_cent = cent_gen('MainStruct',main_structure,'ScatStruct',scat_type);
 		
@@ -260,7 +314,7 @@ for k = 1:var_len
 			
 			obj_csg.create_csg('circle',[0 , 0],r_env);
 			
-			if scat_array
+			if strcmpi(placement_style,'array') || strcmpi(placement_style,'random')
 
 				for i = 1:length(obj_cent.cent_x)
 					
