@@ -72,9 +72,10 @@ for k = 1:var_len
 	% Determines maximum size of elements. Therefore larger values of hmax
 	% creates fewer elements.
 	hmax = 2;
+	hmin = hmax ./ 4;
 	
 	n1 = 1;
-	n2 = 3.4272 + 0.0150i; %interp1(r_i(:,1),r_i(:,2)+r_i(:,3)*1i,lambda); % Cylinder
+	n2 = interp1(r_i(:,1),r_i(:,2)+r_i(:,3)*1i,lambda); % Cylinder
 	di_const1 = n1^2;
 	di_const2 = n2^2;
 	mag_const1 = 1;
@@ -95,6 +96,7 @@ for k = 1:var_len
 	if strcmp(main_structure,'circle')
 		
 		hmax = hmax * 10;
+		hmin = hmin * 10;
 		r_env = 1500;					% Radius of environment.
 		
 		placement_style = 'random';		% 'manual', 'array' or 'random'.
@@ -108,8 +110,9 @@ for k = 1:var_len
 		elseif strcmpi(placement_style,'random')
 			
 			cyl_n = 100;
-			cyl_dist = 2.*r_scat + 10;
-			max_tries = 500;
+			cyl_dist = 2.*r_scat + 4;
+			max_tries = 100000;
+			
 			
 			area_x = [-100 , 100];
 			area_y = [-100 , 100];
@@ -121,7 +124,7 @@ for k = 1:var_len
 			while i <= cyl_n
 				
 				cent_x(i) = area_x(1) + (area_x(2) - area_x(1)).*rand;
-				cent_y(i) = area_y(1) + (area_y(2) - area_y(1)).*rand;
+				cent_y(i) = sin(acos(cent_x(i)./area_x(2))) .* (area_y(1) + (area_y(2) - area_y(1)).*rand);
 				
 				inter_dist = [cent_x(1:(i-1)) - cent_x(i) ; cent_y(1:(i-1)) - cent_y(i)];
 				
@@ -141,7 +144,6 @@ for k = 1:var_len
 						cent_x(end) = [];
 						cent_y(cent_y == 0) = [];
 						cent_y(end) = [];
-						
 						
 						break
 						
@@ -244,8 +246,7 @@ for k = 1:var_len
 	k0 = 2*pi/lambda;
 
 
-	if length(lambda) == 1 || k == 1
-	
+	if length(lambda) == 1 || k == 1	
 		%% Centres of cylinders
 
 		if strcmpi(placement_style,'array')
@@ -442,15 +443,14 @@ for k = 1:var_len
 		end
 
 % 		figure
-% 		pdegplot(dl,'FaceLabels','on','EdgeLabels','on')
+% 		pdegplot(dl)%,'FaceLabels','on','EdgeLabels','on')
 % 		axis equal
-% 		break
 
 		model = createpde(1);
 
 		model.geometryFromEdges(dl);
 
-		mesh = generateMesh(model,'Hmax',hmax,'GeometricOrder',geometric_order);
+		mesh = generateMesh(model,'Hmax',hmax,'Hmin',hmin,'GeometricOrder',geometric_order);
 		
 
 		%% Zone determination
@@ -472,6 +472,7 @@ for k = 1:var_len
 
 		[p,e,t] = meshToPet(mesh);
 		
+% 		figure
 % 		pdemesh(p,e,t)
 		
 % 		[p,e,t] = MidPointFix({p,e,t});
@@ -486,7 +487,6 @@ for k = 1:var_len
 		
 % 		figure
 % 		pdemesh(p,e,t)
-% 		asd
 		
 		n_tri = size(t,2);
 
