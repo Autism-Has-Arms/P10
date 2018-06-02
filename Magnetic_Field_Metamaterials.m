@@ -54,16 +54,17 @@ for k = 1:var_len
 
 	%% Parameters
 	
-	main_structure = 'circle';	% 'circle' or 'rectangle'.
-	scat_type = 'circle';		% 'circle' or 'rectangle'.
+	main_structure = 'circle';		% 'circle' or 'rectangle'.
+	scat_shape = 'circle';			% 'circle' or 'rectangle'.
+	material_type = 'bulk';			% 'scatterers' or 'bulk'
 	
-	polarisation = 'p';			% 'p' or 's'.
+	polarisation = 's';				% 'p' or 's'.
 	
-	PML = true;					% Include Perfectly-Matched Layer.
+	PML = true;						% Include Perfectly-Matched Layer.
 	
-	enable_surface = true;		% Enable surface.
+	enable_surface = true;			% Enable surface.
 	
-	geometric_order = 'linear';	% 'linear' or 'quadratic'.
+	geometric_order = 'linear';		% 'linear' or 'quadratic'.
 
 	lambda = 700;
 	
@@ -71,26 +72,48 @@ for k = 1:var_len
 	
 	% Determines maximum size of elements. Therefore larger values of hmax
 	% creates fewer elements.
-	hmax = 2;
+	hmax = 3;
 	hmin = hmax ./ 4;
 	
 	n1 = 1;
 	n2 = interp1(r_i(:,1),r_i(:,2)+r_i(:,3)*1i,lambda); % Cylinder
-	di_const1 = n1^2;
-	di_const2 = n2^2;
-	mag_const1 = 1;
-	mag_const2 = 1;
 	
-	if strcmpi(scat_type,'circle')
+	if strcmpi(scat_shape,'circle')
 	
 		r_scat = 12; %sqrt((24.^2 - 4.^2 .* (4 - pi))./pi);	% Radius of scatterers.
 		
-	elseif strcmpi(scat_type,'rectangle')
+	elseif strcmpi(scat_shape,'rectangle')
 
 		scat_width = 24;
 		scat_height = 24;
 		rounded_corners = true;
 
+	end
+	
+	switch material_type
+		
+		case 'bulk'
+			
+			meta_str = ['s-pol,r_cyl=',num2str(r_scat),',wavelength=400-900,pattern=line.mat'];
+			
+			if exist(fullfile(pwd,meta_str),'file') ~= 2
+				
+				error(sprintf(['\nNo\n\n"',meta_str,'"\n\nin working directory.']))
+				
+			end
+			meta_m = load(meta_str);
+			di_const1 = interp1(meta_m.wavelength,meta_m.permittivity,lambda);
+			di_const2 = n2^2;
+			mag_const1 = interp1(meta_m.wavelength,meta_m.permeability,lambda);
+			mag_const2 = 1;
+			
+		case 'scatterers'
+			
+			di_const1 = n1^2;
+			di_const2 = n2^2;
+			mag_const1 = 1;
+			mag_const2 = 1;
+			
 	end
 	
 	if strcmp(main_structure,'circle')
@@ -99,9 +122,13 @@ for k = 1:var_len
 		hmin = hmin * 10;
 		r_env = 1500;					% Radius of environment.
 		
-		placement_style = 'random';		% 'manual', 'array' or 'random'.
+		placement_style = 'manual';		% 'manual', 'array' or 'random'.
 		
-		if strcmpi(placement_style,'array')
+		if strcmpi(placement_style,'manual')
+			
+			scatterers = {12,0,0};
+			
+		elseif strcmpi(placement_style,'array')
 			
 			n_col = 13;
 			rows_scat = 13;
@@ -159,11 +186,11 @@ for k = 1:var_len
 			
 		else
 			
-			if strcmpi(scat_type,'rectangle')
+			if strcmpi(scat_shape,'rectangle')
 
 				scatterers = {scat_width scat_height};	% {Width , Height} or {[x_start x_end] , [y_start , y_end]} or another permutation.
 
-			elseif strcmpi(scat_type,'circle')
+			elseif strcmpi(scat_shape,'circle')
 
 				scatterers = {r_scat 0 0};	% {Radii , Centre x-coordinates , Centre y_coordinates] of scatterer.
 
@@ -184,7 +211,7 @@ for k = 1:var_len
 			n3 = n2;
 			di_const3 = di_const2;
 			mag_const3 = mag_const2;
-			n2 = 1;	% Glass.
+			n2 = 1.5;	% Glass.
 			di_const2 = n2^2;
 			mag_const2 = 1;
 			
@@ -251,7 +278,7 @@ for k = 1:var_len
 
 		if strcmpi(placement_style,'array')
 			
-			obj_cent = cent_gen('MainStruct',main_structure,'ScatStruct',scat_type);
+			obj_cent = cent_gen('MainStruct',main_structure,'ScatStruct',scat_shape);
 		
 			if strcmpi(obj_cent.main_struct,'rectangle')
 
@@ -319,7 +346,7 @@ for k = 1:var_len
 
 				for i = 1:length(obj_cent.cent_x)
 					
-					if strcmpi(scat_type,'circle')
+					if strcmpi(scat_shape,'circle')
 
 						obj_csg.create_csg('circle',[obj_cent.cent_x(i) , obj_cent.cent_y(i)],r_scat);
 						
@@ -335,11 +362,11 @@ for k = 1:var_len
 			
 				for i = 1:size(scatterers,1)
 					
-					if strcmpi(scat_type,'rectangle')
+					if strcmpi(scat_shape,'rectangle')
 						
 						obj_csg.create_csg('rectangle',scatterers{i,1},scatterers{i,2});
 						
-					elseif strcmpi(scat_type,'circle')
+					elseif strcmpi(scat_shape,'circle')
 
 						obj_csg.create_csg('circle',[scatterers{i,2} , scatterers{i,3}],scatterers{i,1});
 						
@@ -349,7 +376,7 @@ for k = 1:var_len
 				
 			end
 			
-			if strcmpi(scat_type,'rectangle') && rounded_corners
+			if strcmpi(scat_shape,'rectangle') && rounded_corners
 
 				r_corner_circ = (scat_width+scat_height)/12;
 				
@@ -402,7 +429,7 @@ for k = 1:var_len
 
 		[dl,bt] = decsg(obj_csg.geom,obj_csg.sf,obj_csg.ns);
 
-		if strcmpi(scat_type,'rectangle') && rounded_corners
+		if strcmpi(scat_shape,'rectangle') && rounded_corners
 
 			ind_edge_rem = zeros(1,4.*5.*size(obj_cent.cent_x,2));
 			
