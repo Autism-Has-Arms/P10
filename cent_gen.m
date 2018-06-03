@@ -86,7 +86,7 @@ classdef cent_gen < handle
 
 			end
 			
-			if strcmpi(struct_shape,'line')
+			if strcmpi(p.Results.StructShape,'line')
 			
 				cyl_cent_x = zeros(1,rows_cyl);
 				

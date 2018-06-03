@@ -40,7 +40,7 @@ classdef zone_determination < handle
 				
 				temp_fig = figure('Unit','normalized','Position',[(1-0.4-0.1) 0.25 0.4 0.5]);
 				pdegplot(dl,'FaceLabels','on')
-				axis equal
+				axis equal 
 				
 				envi = inputdlg({'Upper environment','Lower environment'},...
 								 'Manual input',[1 30 ; 1 30]);

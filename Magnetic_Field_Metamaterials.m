@@ -14,7 +14,7 @@ if exist('disppct.m','file') == 2 && exist('dispstat.m','file') == 2
 
 end
 
-% var_object = 'lambda = linspace(188,300,12)';
+var_object = 'lambda = linspace(300,400,2)';
 
 if exist('var_object','var')
 	
@@ -54,9 +54,9 @@ for k = 1:var_len
 
 	%% Parameters
 	
-	main_structure = 'circle';		% 'circle' or 'rectangle'.
+	main_structure = 'circle';	% 'circle' or 'rectangle'.
 	scat_shape = 'circle';			% 'circle' or 'rectangle'.
-	material_type = 'bulk';			% 'scatterers' or 'bulk'
+	material_type = 'scatterers';			% 'scatterers' or 'bulk'
 	
 	polarisation = 's';				% 'p' or 's'.
 	
@@ -103,16 +103,16 @@ for k = 1:var_len
 			end
 			meta_m = load(meta_str);
 			di_const1 = interp1(meta_m.wavelength,meta_m.permittivity,lambda);
-			di_const2 = n2^2;
+			di_const3 = n2^2;
 			mag_const1 = interp1(meta_m.wavelength,meta_m.permeability,lambda);
-			mag_const2 = 1;
+			mag_const3 = 1;
 			
 		case 'scatterers'
 			
 			di_const1 = n1^2;
-			di_const2 = n2^2;
+			di_const3 = n2^2;
 			mag_const1 = 1;
-			mag_const2 = 1;
+			mag_const3 = 1;
 			
 	end
 	
@@ -208,9 +208,6 @@ for k = 1:var_len
 			
 			surface_y_coordinate = 0;
 			
-			n3 = n2;
-			di_const3 = di_const2;
-			mag_const3 = mag_const2;
 			n2 = 1.5;	% Glass.
 			di_const2 = n2^2;
 			mag_const2 = 1;
@@ -238,7 +235,10 @@ for k = 1:var_len
 		
 	elseif strcmp(main_structure,'rectangle')
 		
+		placement_style = 'array';
+		
 		rows_scat = 11;
+		period_scat = 30;
 		
 		ul_spacing = 1400;
 		area_width = 4*period_scat;
@@ -287,8 +287,6 @@ for k = 1:var_len
 					tot_height = ul_spacing;
 
 				else
-
-					obj_cent = cent_gen;
 
 					obj_cent.gen_cent(rows_scat,period_scat,area_width,'StructShape',cyl_pattern);
 
@@ -482,17 +480,46 @@ for k = 1:var_len
 
 		%% Zone determination
 		
-		obj_zone = zone_determination;
-		
-		obj_zone.zone_det(dl,bt,'enable_surface',enable_surface,'PML',PML);
+		switch main_structure
+			
+			case 'circle'
+				
+				obj_zone = zone_determination;
+
+				obj_zone.zone_det(dl,bt,'enable_surface',enable_surface,'PML',PML);
+			
+			case 'rectangle'
+				
+				obj_zone = zone_determination;
+				
+				unique_zones = unique(dl(7,:)); 
+   
+				unique_zones = unique_zones(~unique_zones == 0); 
+
+				[~ , zone_majority_ind] = max(histc(dl(7,:),unique_zones)); 
+
+				obj_zone.env = unique_zones(zone_majority_ind);
+				
+				zone_scat = 1:size(bt,2);
+				obj_zone.cyl = zone_scat(zone_scat ~= obj_zone.env);
+  
+		end
 		
 		cyl_diel_const = di_const3 * ones(1,length(obj_zone.cyl));
 		
-		env_diel_const = [di_const1 di_const2]; % Corresponding dielectric constant
+		env_diel_const = di_const1; % Corresponding dielectric constant
 		
 		cyl_mag_const = mag_const3 * ones(1,length(obj_zone.cyl));
 		
-		env_mag_const = [mag_const1 mag_const2];
+		env_mag_const = mag_const1;
+		
+		if enable_surface
+			
+			env_diel_const = [env_diel_const di_const2];
+			
+			env_mag_const = [env_mag_const mag_const2];
+			
+		end
 		
 		
 		%% Triangle Manipulation
@@ -567,7 +594,11 @@ for k = 1:var_len
 	
 	%% Calculations
 	
-	disp(['Triangle amount = ',num2str(length(t))])
+	if var_len == 1
+		
+		disp(['Triangle amount = ',num2str(length(t))])
+		
+	end
 
 	i_for = i_for + 1;
 	
@@ -603,8 +634,8 @@ for k = 1:var_len
 
 			else
 
-				diel_const = di_const2;
-				mag_const = mag_const2;
+				diel_const = di_const3;
+				mag_const = mag_const3;
 
 			end
 			
@@ -646,15 +677,19 @@ for k = 1:var_len
 		d32 = (+0 * du_dx + 1 * dv_dx) * (+1 * du_dx + 0 * dv_dx) + (+0 * du_dy + 1 * dv_dy) * (+1 * du_dy + 0 * dv_dy);
 		d33 = (+0 * du_dx + 1 * dv_dx) * (+0 * du_dx + 1 * dv_dx) + (+0 * du_dy + 1 * dv_dy) * (+0 * du_dy + 1 * dv_dy);
 		
+		% x and y coordinates of middle of triangle.
+		x_mid_tri = ((max(xy_val(1,:)) - min(xy_val(1,:)))/2) + min(xy_val(1,:));
+		y_mid_tri = ((max(xy_val(2,:)) - min(xy_val(2,:)))/2) + min(xy_val(2,:));
+		
+		r = sqrt(x_mid_tri.^2 + y_mid_tri.^2);
+		
+		fun_ang = cos(theta) * x_mid_tri + sin(theta) * y_mid_tri;
+
+		E0 = exp(1i * k0 * ref_ind * fun_ang);
+			
 		A = area_tri_k * [d11 d12 d13 ; d21 d22 d23 ; d31 d32 d33];
 		
 		if PML
-		
-			% x and y coordinates of middle of triangle.
-			x_mid_tri = ((max(xy_val(1,:)) - min(xy_val(1,:)))/2) + min(xy_val(1,:));
-			y_mid_tri = ((max(xy_val(2,:)) - min(xy_val(2,:)))/2) + min(xy_val(2,:));
-			
-			r = sqrt(x_mid_tri.^2 + y_mid_tri.^2);
 			
 			r_0 = r_env;
 			
@@ -671,10 +706,6 @@ for k = 1:var_len
 			end
 
 			A = A / (1 + 1i * sigma).^2;
-			
-			fun_ang = cos(theta) * x_mid_tri + sin(theta) * y_mid_tri;
-
-			E0 = exp(1i * k0 * fun_ang);
 			
 		else
 			
@@ -1175,15 +1206,22 @@ for k = 1:var_len
 	
 	Hv = M\bv;
 	
-	figure('Unit','normalized','Position',[0.05 0.25 0.4 0.5])
-	pdeplot(p,e,t,'xydata',abs(Hv.'))%,'Zdata',abs(Hv))
-	colormap gray %parula
-	hold on
-	pdegplot(dl)
-	axis equal
+	if var_len == 1
 	
-% 	H0vxy = cos(theta) * p(1,:) + sin(theta) * p(2,:);
-% 	H0v = exp(1i*k0*n1*H0vxy).';
+		figure('Unit','normalized','Position',[0.05 0.25 0.4 0.5])
+		pdeplot(p,e,t,'xydata',abs(Hv.'))%,'Zdata',abs(Hv))
+		colormap gray %parula
+		hold on
+		pdegplot(dl)
+		axis equal
+	
+	if strcmpi(main_structure,'rectangle')
+		
+		H0vxy = cos(theta) * p(1,:) + sin(theta) * p(2,:);
+		H0v = exp(1i*k0*n1*H0vxy).';
+		
+	end
+		
 	Hvn = Hv + H0v;
 
 	figure('Unit','normalized','Position',[(1-0.4-0.05) 0.25 0.4 0.5])
@@ -1192,6 +1230,8 @@ for k = 1:var_len
 	hold on
 	pdegplot(dl)
 	axis equal
+	
+	end
 
 % 	caxis([0 1.5])
 
@@ -1199,15 +1239,13 @@ for k = 1:var_len
 % 	hold on
 % 	plot(normal_vec(1,:),normal_vec(2,:),'*')
 
-	break
-
 	%% Plotting values of line down through structure
 	
 	angle_peri = linspace(0,2*pi,10000);
 	
-	line_x = cos(angle_peri) * r_circ;
+	line_x = cos(angle_peri) * r_env;
 	
-	line_y = sin(angle_peri) * r_circ;
+	line_y = sin(angle_peri) * r_env;
 	
 	%{
 	line_x = linspace(0,0,500);
@@ -1224,33 +1262,53 @@ for k = 1:var_len
 
 % 	line_abs = abs(evaluate(int_F,[line_x;line_y]) - E0_line).^2;
 	
-	line_abs = (abs(evaluate(int_F,[line_x;line_y])).^2)*(r_circ - 100);
+	line_abs = (abs(evaluate(int_F,[line_x;line_y])).^2)*(r_env - 100);
+	
+	switch polarisation
+		
+		case 'p'
+	
+			line_abs = line_abs .* n1;
+			
+		case 's'
+			
+			line_abs = line_abs ./ n1;
+			
+	end
 	
 	if enable_surface
+		
+		switch polarisation
+			
+			case 'p'
 	
-		line_abs(line_y < surface_height) = line_abs(line_y < surface_height)/n2;
-		
-	else
-		
-		line_abs(line_y < surface_height) = line_abs(line_y < surface_height)/n1;
+				line_abs(line_y < surface_y_coordinate) = line_abs(line_y < surface_y_coordinate) .* n2 ./ n1;
+				
+			case 's'
+				
+				line_abs(line_y < surface_y_coordinate) = line_abs(line_y < surface_y_coordinate) .* n1 ./ n2;
+				
+		end
 		
 	end
 	
-	line_abs = line_abs / max(line_abs);
+% 	line_abs = line_abs / max(line_abs);
 	
-	curve_area = trapz(angle_peri,line_abs/r_circ);
+	curve_area = trapz(angle_peri,line_abs/r_env);
 	
-	figure
+% 	figure
 
 % 	scatter3(cos(angle_peri)*r_circ,sin(angle_peri)*r_circ,line_abs,1,line_abs)
-	plot(angle_peri,line_abs)
-	asd
+% 	plot(angle_peri,line_abs)
+% 	asd
 % 	plot(line_y,line_abs)
 
 % 	axis([-tot_height tot_height -1.5 1.5])
 	scat_cross(k) = curve_area;
 	
 end
+
+plot(var_array,scat_cross)
 
 %{
 	%% Calculating transmittance and reflectance etc.
