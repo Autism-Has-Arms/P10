@@ -72,11 +72,17 @@ for k = 1:var_len
 	
 	% Determines maximum size of elements. Therefore larger values of hmax
 	% creates fewer elements.
-	hmax = 3;
+	hmax = 3 .* 10;
 	hmin = hmax ./ 4;
 	
-	n1 = 1;
-	n2 = interp1(r_i(:,1),r_i(:,2)+r_i(:,3)*1i,lambda); % Cylinder
+	if exist('var_string','var')
+		
+		eval(var_string)
+		
+	end
+	
+	n_env = 1;
+	n_scat = interp1(r_i(:,1),r_i(:,2)+r_i(:,3)*1i,lambda); % Cylinder
 	
 	if strcmpi(scat_shape,'circle')
 	
@@ -101,25 +107,24 @@ for k = 1:var_len
 				error(sprintf(['\nNo\n\n"',meta_str,'"\n\nin working directory.']))
 				
 			end
+			
 			meta_m = load(meta_str);
-			di_const1 = interp1(meta_m.wavelength,meta_m.permittivity,lambda);
-			di_const3 = n2^2;
-			mag_const1 = interp1(meta_m.wavelength,meta_m.permeability,lambda);
-			mag_const3 = 1;
+			di_const_env = n_env.^2;
+			di_const_scat = interp1(meta_m.wavelength,meta_m.permittivity,lambda);
+			mag_const_env = 1;
+			mag_const_scat = interp1(meta_m.wavelength,meta_m.permeability,lambda);
 			
 		case 'scatterers'
 			
-			di_const1 = n1^2;
-			di_const3 = n2^2;
-			mag_const1 = 1;
-			mag_const3 = 1;
+			di_const_env = n_env^2;
+			di_const_scat = n_scat^2;
+			mag_const_env = 1;
+			mag_const_scat = 1;
 			
 	end
 	
 	if strcmp(main_structure,'circle')
 		
-		hmax = hmax * 10;
-		hmin = hmin * 10;
 		r_env = 1500;					% Radius of environment.
 		
 		placement_style = 'manual';		% 'manual', 'array' or 'random'.
@@ -208,28 +213,28 @@ for k = 1:var_len
 			
 			surface_y_coordinate = 0;
 			
-			n2 = 1.5;	% Glass.
-			di_const2 = n2^2;
-			mag_const2 = 1;
+			n_surf = 1.5;	% Glass.
+			di_const_surf = n_surf^2;
+			mag_const_surf = 1;
 			
 			theta_1 = theta;
 			
 			if theta <= 3*pi/2
 				
 				theta_i = 3*pi/2 - theta_1;
-				theta_t = asin(n1/n2 * sin(theta_i));
+				theta_t = asin(n_env/n_surf * sin(theta_i));
 				theta_2 = 3*pi/2 - theta_t;
 				
 			else
 				
 				theta_i = theta_1 - 3*pi/2;
-				theta_t = asin(n1/n2 * sin(theta_i));
+				theta_t = asin(n_env/n_surf * sin(theta_i));
 				theta_2 = theta_t + 3*pi/2;
 				
 			end
 			
-			refl = (n2 * cos(theta_i) - n1 * cos(theta_t))/(n1 * cos(theta_t) + n2 * cos(theta_i));
-			tran = (2 * n2 * cos(theta_i))/(n1 * cos(theta_t) + n2 * cos(theta_i));
+			refl = (n_surf * cos(theta_i) - n_env * cos(theta_t))/(n_env * cos(theta_t) + n_surf * cos(theta_i));
+			tran = (2 * n_surf * cos(theta_i))/(n_env * cos(theta_t) + n_surf * cos(theta_i));
 			
 		end
 		
@@ -254,14 +259,6 @@ for k = 1:var_len
 			error(['Overlapping cylinders. Radius (r_cyl) must be below r = ' , num2str(round(period_scat/2,2)) , '. (Line structure)'])
 			
 		end
-		
-	end
-	
-	% Minor calculations
-	
-	if exist('var_string','var')
-		
-		eval(var_string)
 		
 	end
 
@@ -505,19 +502,19 @@ for k = 1:var_len
   
 		end
 		
-		cyl_diel_const = di_const3 * ones(1,length(obj_zone.cyl));
+		cyl_diel_const = di_const_surf * ones(1,length(obj_zone.cyl));
 		
-		env_diel_const = di_const1; % Corresponding dielectric constant
+		env_diel_const = di_const_env; % Corresponding dielectric constant
 		
-		cyl_mag_const = mag_const3 * ones(1,length(obj_zone.cyl));
+		cyl_mag_const = mag_const_surf * ones(1,length(obj_zone.cyl));
 		
-		env_mag_const = mag_const1;
+		env_mag_const = mag_const_env;
 		
 		if enable_surface
 			
-			env_diel_const = [env_diel_const di_const2];
+			env_diel_const = [env_diel_const di_const_scat];
 			
-			env_mag_const = [env_mag_const mag_const2];
+			env_mag_const = [env_mag_const mag_const_scat];
 			
 		end
 		
@@ -610,18 +607,18 @@ for k = 1:var_len
 			
 			if any(zone == obj_zone.upper)
 				
-				diel_const = di_const1;
-				mag_const = mag_const1;
+				diel_const = di_const_env;
+				mag_const = mag_const_env;
 			
 			elseif any(zone == obj_zone.lower)
 				
-				diel_const = di_const2;
-				mag_const = mag_const2;
+				diel_const = di_const_scat;
+				mag_const = mag_const_scat;
 				
 			elseif any(zone == obj_zone.cyl)
 				
-				diel_const = di_const3;
-				mag_const = mag_const3;
+				diel_const = di_const_surf;
+				mag_const = mag_const_surf;
 				
 			end
 			
@@ -629,13 +626,13 @@ for k = 1:var_len
 		
 			if any(zone == obj_zone.env)
 
-				diel_const = di_const1;
-				mag_const = mag_const1;
+				diel_const = di_const_env;
+				mag_const = mag_const_env;
 
 			else
 
-				diel_const = di_const3;
-				mag_const = mag_const3;
+				diel_const = di_const_surf;
+				mag_const = mag_const_surf;
 
 			end
 			
@@ -713,11 +710,11 @@ for k = 1:var_len
 				
 				case 'p'
 			
-					bk = - k0.^2 * (1/diel_const - 1/di_const1) * E0 * 2 * area_tri_k / 6;
+					bk = - k0.^2 * (1/diel_const - 1/di_const_env) * E0 * 2 * area_tri_k / 6;
 					
 				case 's'
 					
-					bk = - k0.^2 * (diel_const - di_const1) * E0 * 2 * area_tri_k / 6;
+					bk = - k0.^2 * (diel_const - di_const_env) * E0 * 2 * area_tri_k / 6;
 					
 			end
 			
@@ -1024,7 +1021,7 @@ for k = 1:var_len
 				if all(l_or_r)
 					
 					H_prime = (vec_normal(1)*cos(theta_2) + vec_normal(2)*sin(theta_2))...
-							 * 1i * k0 * n2 * tran * exp(1i*k0*n2*(cos(theta_2)*sum(vec(1,:))/2 + sin(theta_2)*sum(vec(2,:))/2));
+							 * 1i * k0 * n_surf * tran * exp(1i*k0*n_surf*(cos(theta_2)*sum(vec(1,:))/2 + sin(theta_2)*sum(vec(2,:))/2));
 					
 					if vec_normal(2) == 1
 						
@@ -1063,12 +1060,12 @@ for k = 1:var_len
 					u_or_d = logical(sum(e(6:7,i) == obj_zone.env,2));
 
 					H_prime = [(vec_normal(1)*cos(theta_1) + vec_normal(2)*sin(theta_1))...
-							 * 1i * k0 * n1 * exp(1i*k0*n1*(cos(theta_1)*sum(vec(1,:))/2 + sin(theta_1)*sum(vec(2,:))/2))...
+							 * 1i * k0 * n_env * exp(1i*k0*n_env*(cos(theta_1)*sum(vec(1,:))/2 + sin(theta_1)*sum(vec(2,:))/2))...
 							 + (vec_normal(1)*cos(theta_1) - vec_normal(2)*sin(theta_1))...
-							 * 1i * k0 * n1 * refl * exp(1i*k0*n1*(cos(theta_1)*sum(vec(1,:))/2 - sin(theta_1)*sum(vec(2,:))/2))...
+							 * 1i * k0 * n_env * refl * exp(1i*k0*n_env*(cos(theta_1)*sum(vec(1,:))/2 - sin(theta_1)*sum(vec(2,:))/2))...
 							 ;...
 							   (vec_normal(1)*cos(theta_2) + vec_normal(2)*sin(theta_2))...
-							 * 1i * k0 * n2 * tran * exp(1i*k0*n2*(cos(theta_2)*sum(vec(1,:))/2 + sin(theta_2)*sum(vec(2,:))/2))];
+							 * 1i * k0 * n_surf * tran * exp(1i*k0*n_surf*(cos(theta_2)*sum(vec(1,:))/2 + sin(theta_2)*sum(vec(2,:))/2))];
 
 					switch polarisation
 
@@ -1177,14 +1174,14 @@ for k = 1:var_len
 			
 			if y_vec >= surface_y_coordinate
 				
-				ref_ind = sqrt(di_const1);
+				ref_ind = sqrt(di_const_env);
 				
 				H0v(i) = exp(1i * k0 * ref_ind * (cos(theta_1) * x_vec + sin(theta_1) * y_vec))...
 					   + refl * exp(1i * k0 * ref_ind * (cos(theta_1) * x_vec - sin(theta_1) * y_vec));
 				
 			else
 				
-				ref_ind = sqrt(di_const2);
+				ref_ind = sqrt(di_const_scat);
 				
 				H0v(i) = tran * exp(1i * k0 * ref_ind * (cos(theta_2) * x_vec + sin(theta_2) * y_vec));
 				
@@ -1218,7 +1215,7 @@ for k = 1:var_len
 	if strcmpi(main_structure,'rectangle')
 		
 		H0vxy = cos(theta) * p(1,:) + sin(theta) * p(2,:);
-		H0v = exp(1i*k0*n1*H0vxy).';
+		H0v = exp(1i*k0*n_env*H0vxy).';
 		
 	end
 		
@@ -1268,11 +1265,11 @@ for k = 1:var_len
 		
 		case 'p'
 	
-			line_abs = line_abs .* n1;
+			line_abs = line_abs .* n_env;
 			
 		case 's'
 			
-			line_abs = line_abs ./ n1;
+			line_abs = line_abs ./ n_env;
 			
 	end
 	
@@ -1282,11 +1279,11 @@ for k = 1:var_len
 			
 			case 'p'
 	
-				line_abs(line_y < surface_y_coordinate) = line_abs(line_y < surface_y_coordinate) .* n2 ./ n1;
+				line_abs(line_y < surface_y_coordinate) = line_abs(line_y < surface_y_coordinate) .* n_surf ./ n_env;
 				
 			case 's'
 				
-				line_abs(line_y < surface_y_coordinate) = line_abs(line_y < surface_y_coordinate) .* n1 ./ n2;
+				line_abs(line_y < surface_y_coordinate) = line_abs(line_y < surface_y_coordinate) .* n_env ./ n_surf;
 				
 		end
 		
