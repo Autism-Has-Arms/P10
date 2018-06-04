@@ -14,7 +14,7 @@ if exist('disppct.m','file') == 2 && exist('dispstat.m','file') == 2
 
 end
 
-var_object = 'lambda = linspace(300,400,2)';
+% var_object = 'lambda = linspace(300,400,2)';
 
 if exist('var_object','var')
 	
@@ -127,7 +127,7 @@ for k = 1:var_len
 		
 		r_env = 1500;					% Radius of environment.
 		
-		placement_style = 'manual';		% 'manual', 'array' or 'random'.
+		placement_style = 'random';		% 'manual', 'array' or 'random'.
 		
 		if strcmpi(placement_style,'manual')
 			
@@ -214,7 +214,7 @@ for k = 1:var_len
 			surface_y_coordinate = 0;
 			
 			n_surf = 1.5;	% Glass.
-			di_const_surf = n_surf^2;
+			di_const_surf = n_surf.^2;
 			mag_const_surf = 1;
 			
 			theta_1 = theta;
@@ -489,11 +489,11 @@ for k = 1:var_len
 				
 				obj_zone = zone_determination;
 				
-				unique_zones = unique(dl(7,:)); 
+				unique_zones = unique(dl(7,:));
    
-				unique_zones = unique_zones(~unique_zones == 0); 
+				unique_zones = unique_zones(~unique_zones == 0);
 
-				[~ , zone_majority_ind] = max(histc(dl(7,:),unique_zones)); 
+				[~ , zone_majority_ind] = max(histc(dl(7,:),unique_zones));
 
 				obj_zone.env = unique_zones(zone_majority_ind);
 				
@@ -502,19 +502,19 @@ for k = 1:var_len
   
 		end
 		
-		cyl_diel_const = di_const_surf * ones(1,length(obj_zone.cyl));
+		cyl_diel_const = di_const_scat * ones(1,length(obj_zone.cyl));
 		
 		env_diel_const = di_const_env; % Corresponding dielectric constant
 		
-		cyl_mag_const = mag_const_surf * ones(1,length(obj_zone.cyl));
+		cyl_mag_const = mag_const_scat * ones(1,length(obj_zone.cyl));
 		
 		env_mag_const = mag_const_env;
 		
 		if enable_surface
 			
-			env_diel_const = [env_diel_const di_const_scat];
+			env_diel_const = [env_diel_const di_const_surf];
 			
-			env_mag_const = [env_mag_const mag_const_scat];
+			env_mag_const = [env_mag_const mag_const_surf];
 			
 		end
 		
@@ -612,13 +612,13 @@ for k = 1:var_len
 			
 			elseif any(zone == obj_zone.lower)
 				
-				diel_const = di_const_scat;
-				mag_const = mag_const_scat;
+				diel_const = di_const_surf;
+				mag_const = mag_const_surf;
 				
 			elseif any(zone == obj_zone.cyl)
 				
-				diel_const = di_const_surf;
-				mag_const = mag_const_surf;
+				diel_const = di_const_scat;
+				mag_const = mag_const_scat;
 				
 			end
 			
@@ -631,10 +631,12 @@ for k = 1:var_len
 
 			else
 
-				diel_const = di_const_surf;
-				mag_const = mag_const_surf;
+				diel_const = di_const_scat;
+				mag_const = mag_const_scat;
 
 			end
+			
+			diel_const = 1;
 			
 		end
 		
@@ -678,8 +680,6 @@ for k = 1:var_len
 		x_mid_tri = ((max(xy_val(1,:)) - min(xy_val(1,:)))/2) + min(xy_val(1,:));
 		y_mid_tri = ((max(xy_val(2,:)) - min(xy_val(2,:)))/2) + min(xy_val(2,:));
 		
-		r = sqrt(x_mid_tri.^2 + y_mid_tri.^2);
-		
 		fun_ang = cos(theta) * x_mid_tri + sin(theta) * y_mid_tri;
 
 		E0 = exp(1i * k0 * ref_ind * fun_ang);
@@ -693,8 +693,10 @@ for k = 1:var_len
 			sigma_0 = 6*log(10)/(2*pi/lambda*r_PML^3);%4*log(10)/(k0*(r_PML.^2)*(diel_const.^2));
 
 			if any(t(end,i) == obj_zone.PML)
+				
+				r_mid_tri = sqrt(x_mid_tri.^2 + y_mid_tri.^2);
 			
-				sigma = sigma_0/diel_const * (r - r_0).^2;
+				sigma = sigma_0/diel_const * (r_mid_tri - r_0).^2;
 				
 			else
 				
@@ -702,9 +704,9 @@ for k = 1:var_len
 				
 			end
 
-			A = A / (1 + 1i * sigma).^2;
+			A = A ./ (1 + 1i * sigma).^2;
 			
-		else
+		elseif strcmpi(main_structure,'circle')
 			
 			switch polarisation
 				
@@ -748,34 +750,28 @@ for k = 1:var_len
 
 			edge_length = abs(diff(xy_val(1,ind_same_yval)));
 
-			% The x and y values are found.
-
-			x_val = xy_val(1,ind_same_yval);
-			y_val = xy_val(2,ind_same_yval);
-
-			k_x = k0 * ref_ind * cos(theta);
-			k_y = k0 * ref_ind * sin(theta);
+			if any(i == ind_top_edge)
 			
-			H0 = exp(-1i * k_y * y_val) .* exp(1i * k_x * x_val);
-			
-% 			if (pi < theta && theta <= 2*pi) && any(i == ind_top_edge)
+				% The x and y values are found.
 
-				bk = 1i * k_y * ref_ind * H0 * edge_length;
-				
-% 			end
-			
-% 			if  (0 <= theta && theta < pi) && any(i == ind_bot_edge)
+				x_val = xy_val(1,ind_same_yval);
+				y_val = xy_val(2,ind_same_yval);
 
-% 				bk = 1i * k_y * ref_ind * H0 * edge_length;
-				
-% 			end
-			
-			bv(t(ind_same_yval,i)) = bv(t(ind_same_yval,i)) + bk.'; %<-- Husk vinkelafhængig.
+				k_x = k0 * ref_ind * cos(theta);
+				k_y = k0 * ref_ind * sin(theta);
 
+				H0 = exp(1i * k_y * y_val) .* exp(1i * k_x * x_val);
+
+				bk = -1i * k_y * H0 * edge_length;
+
+				bv(t(ind_same_yval,i)) = bv(t(ind_same_yval,i)) + bk.'; %<-- Husk vinkelafhængig.
+			
+			end
+			
 			temp_mat = zeros(3);
 			temp_mat(ind_same_yval,ind_same_yval) = [2 1 ; 1 2];
 
-			C = 1i * edge_length * sqrt(diel_const) * k0 * (1/diel_const) * temp_mat/6;
+			C = 1i * edge_length * sqrt(diel_const) * k_y * (1/diel_const) * temp_mat/6;
 
 			Mk = Mk + C;
 
@@ -1003,20 +999,17 @@ for k = 1:var_len
 	
 		vec_normal = [];
 		
-% 		j = 0;
 		i_for = i_for + 1;
 
 		for i = 1:length(e(1,:))
 
 			if any(ismember(e(6:7,i),obj_zone.cyl))
 
-% 				j = j + 1;
 				l_or_r = logical(sum(e(6:7,i) == obj_zone.cyl,2));
 
 				vec = p(:,e(1:2,i));
 				vec_orth = [vec(2,2) - vec(2,1) ; (vec(1,2) - vec(1,1))] .* (l_or_r - ~l_or_r);
 				vec_normal = vec_orth/norm(vec_orth);
-% 				normal_vec(:,j) = vec_normal+mean(vec,2);
 				
 				if all(l_or_r)
 					
@@ -1107,7 +1100,7 @@ for k = 1:var_len
 
 		end
 	
-	%% Contribution from triangles in all scatterer on the total field.
+		%% Contribution from triangles in all scatterer on the total field.
 	
 		for i = 1:length(obj_zone.cyl)
 			
@@ -1181,7 +1174,7 @@ for k = 1:var_len
 				
 			else
 				
-				ref_ind = sqrt(di_const_scat);
+				ref_ind = sqrt(di_const_surf);
 				
 				H0v(i) = tran * exp(1i * k0 * ref_ind * (cos(theta_2) * x_vec + sin(theta_2) * y_vec));
 				
@@ -1203,7 +1196,7 @@ for k = 1:var_len
 	
 	Hv = M\bv;
 	
-	if var_len == 1
+	if ~exist('var_object','var')
 	
 		figure('Unit','normalized','Position',[0.05 0.25 0.4 0.5])
 		pdeplot(p,e,t,'xydata',abs(Hv.'))%,'Zdata',abs(Hv))
@@ -1212,21 +1205,21 @@ for k = 1:var_len
 		pdegplot(dl)
 		axis equal
 	
-	if strcmpi(main_structure,'rectangle')
-		
-		H0vxy = cos(theta) * p(1,:) + sin(theta) * p(2,:);
-		H0v = exp(1i*k0*n_env*H0vxy).';
-		
-	end
-		
-	Hvn = Hv + H0v;
+		if strcmpi(main_structure,'rectangle')
 
-	figure('Unit','normalized','Position',[(1-0.4-0.05) 0.25 0.4 0.5])
-	pdeplot(p,e,t,'xydata',abs(Hvn))%,'Zdata',abs(Hv))
-	colormap gray %parula
-	hold on
-	pdegplot(dl)
-	axis equal
+			H0vxy = cos(theta) * p(1,:) + sin(theta) * p(2,:);
+			H0v = exp(-1i*k0*n_env*H0vxy).';
+
+		end
+		
+		Hvn = Hv + H0v;
+
+		figure('Unit','normalized','Position',[(1-0.4-0.05) 0.25 0.4 0.5])
+		pdeplot(p,e,t,'xydata',abs(Hvn))%,'Zdata',abs(Hv))
+		colormap gray %parula
+		hold on
+		pdegplot(dl)
+		axis equal
 	
 	end
 
@@ -1238,28 +1231,37 @@ for k = 1:var_len
 
 	%% Plotting values of line down through structure
 	
-	angle_peri = linspace(0,2*pi,10000);
+	switch main_structure
+		
+		case 'circle'
 	
-	line_x = cos(angle_peri) * r_env;
-	
-	line_y = sin(angle_peri) * r_env;
-	
-	%{
-	line_x = linspace(0,0,500);
+		angle_peri = linspace(0,2*pi,10000);
 
-	line_y = linspace(-tot_height,tot_height,500);
-	%}
+		line_x = cos(angle_peri) * r_env;
+
+		line_y = sin(angle_peri) * r_env;
+		
+		int_F = pdeInterpolant(p,t,Hv);
+		
+		line_abs = (abs(evaluate(int_F,[line_x;line_y])).^2)*(r_env - 100);
+		
+		case 'rectangle'
+	
+		line_x = linspace(0,0,500);
+
+		line_y = linspace(-tot_height,tot_height,500);
+		
+		E0_line = exp(1i * k0 * sqrt(1) * line_x).'; % fun_ang <=> line_x
+		
+		int_F = pdeInterpolant(p,t,Hv);
+		
+		line_abs = abs(evaluate(int_F,[line_x;line_y]) - E0_line).^2;
+	
+	end
+	
 	% Interpolant
 	
 % 	fun_ang = cos(theta) .* line_x + sin(theta) .* line_y;
-
-% 	E0_line = exp(1i * k0 * sqrt(1) * line_x).'; % fun_ang <=> line_x
-
-	int_F = pdeInterpolant(p,t,Hv);
-
-% 	line_abs = abs(evaluate(int_F,[line_x;line_y]) - E0_line).^2;
-	
-	line_abs = (abs(evaluate(int_F,[line_x;line_y])).^2)*(r_env - 100);
 	
 	switch polarisation
 		
@@ -1290,8 +1292,18 @@ for k = 1:var_len
 	end
 	
 % 	line_abs = line_abs / max(line_abs);
+
+	switch main_structure
+		
+		case 'circle'
 	
-	curve_area = trapz(angle_peri,line_abs/r_env);
+			curve_area = trapz(angle_peri,line_abs/r_env);
+			
+		case 'rectangle'
+			
+			curve_area = trapz(line_x,line_abs/tot_height);
+			
+	end
 	
 % 	figure
 
@@ -1305,7 +1317,11 @@ for k = 1:var_len
 	
 end
 
-plot(var_array,scat_cross)
+if exist('var_array','var')
+
+	plot(var_array,scat_cross)
+	
+end
 
 %{
 	%% Calculating transmittance and reflectance etc.
