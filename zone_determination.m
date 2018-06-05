@@ -7,9 +7,9 @@ classdef zone_determination < handle
 		env
 		upper
 		lower
-		cyl
-		cyl_whole
-		cyl_split
+		scat
+		scat_whole
+		scat_split
 		
 	end
 	
@@ -57,42 +57,42 @@ classdef zone_determination < handle
 				
 			end
 			
-			%% Cylinder faces
+			%% Scatterer faces
 			
-			cyl_geom = bt(:,(2 + p.Results.PML):(end - p.Results.enable_surface));
+			scat_geom = bt(:,(2 + p.Results.PML):(end - p.Results.enable_surface));
 			
 			if exist('key','var')
 				
-				cyl_geom(obj.env,:) = 0;
+				scat_geom(obj.env,:) = 0;
 				
 			end
 			
-			[row,col] = ind2sub(size(cyl_geom),find(cyl_geom));
+			[row,col] = ind2sub(size(scat_geom),find(scat_geom));
 			ind_cell = mat2cell(col == unique(col).',length(col),ones(1,length(unique(col))));
 			
 			for i = 1:length(ind_cell)
 				
-				cyl = row(ind_cell{i});
+				scat = row(ind_cell{i});
 				
-				if length(cyl) == 1
+				if length(scat) == 1
 					
-					obj.cyl_whole = [obj.cyl_whole cyl];
+					obj.scat_whole = [obj.scat_whole scat];
 					
 				else
 					
-					if bt(cyl(1),end)
+					if bt(scat(1),end)
 						
-						cyl = flipud(cyl);
+						scat = flipud(scat);
 						
 					end
 					
-					obj.cyl_split = [obj.cyl_split cyl];
+					obj.scat_split = [obj.scat_split scat];
 					
 				end
 				
 			end
 			
-			obj.cyl = [obj.cyl_whole reshape(obj.cyl_split.',1,[])];
+			obj.scat = [obj.scat_whole reshape(obj.scat_split.',1,[])];
 			
 			%% Perfectly Matched Layer
 			

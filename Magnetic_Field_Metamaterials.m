@@ -1,5 +1,5 @@
 clear all
-close all
+% close all
 clc
 
 
@@ -56,7 +56,7 @@ for k = 1:var_len
 	
 	main_structure = 'circle';	% 'circle' or 'rectangle'.
 	scat_shape = 'circle';			% 'circle' or 'rectangle'.
-	material_type = 'scatterers';			% 'scatterers' or 'bulk'
+	material_type = 'bulk';			% 'scatterers' or 'bulk'
 	
 	polarisation = 's';				% 'p' or 's'.
 	
@@ -72,8 +72,16 @@ for k = 1:var_len
 	
 	% Determines maximum size of elements. Therefore larger values of hmax
 	% creates fewer elements.
-	hmax = 3 .* 10;
+	hmax = 4 .* 10;
 	hmin = hmax ./ 4;
+	
+	% Parameters for circular scatterers.
+	r_scat = 12; %sqrt((24.^2 - 4.^2 .* (4 - pi))./pi);	% Radius of scatterers.
+	
+	% Parameters for rectangular scatterers.
+	scat_width = 24;
+	scat_height = 24;
+	rounded_corners = true;
 	
 	if exist('var_string','var')
 		
@@ -81,20 +89,9 @@ for k = 1:var_len
 		
 	end
 	
+	% Refractive indices.
 	n_env = 1;
 	n_scat = interp1(r_i(:,1),r_i(:,2)+r_i(:,3)*1i,lambda); % Cylinder
-	
-	if strcmpi(scat_shape,'circle')
-	
-		r_scat = 12; %sqrt((24.^2 - 4.^2 .* (4 - pi))./pi);	% Radius of scatterers.
-		
-	elseif strcmpi(scat_shape,'rectangle')
-
-		scat_width = 24;
-		scat_height = 24;
-		rounded_corners = true;
-
-	end
 	
 	switch material_type
 		
@@ -127,7 +124,7 @@ for k = 1:var_len
 		
 		r_env = 1500;					% Radius of environment.
 		
-		placement_style = 'random';		% 'manual', 'array' or 'random'.
+		placement_style = 'array';		% 'manual', 'array' or 'random'.
 		
 		if strcmpi(placement_style,'manual')
 			
@@ -213,7 +210,7 @@ for k = 1:var_len
 			
 			surface_y_coordinate = 0;
 			
-			n_surf = 1.5;	% Glass.
+			n_surf = 1;	% Glass.
 			di_const_surf = n_surf.^2;
 			mag_const_surf = 1;
 			
@@ -297,7 +294,7 @@ for k = 1:var_len
 
 				obj_cent = cent_gen;
 
-				obj_cent.gen_cent(rows_scat,period_scat,n_col,'StructShape','hexagonal','Scat_pm','-');
+				obj_cent.gen_cent(rows_scat,period_scat,n_col,'StructShape','hexagonal','Scat_pm','+');
 			
 			end
 			
@@ -309,6 +306,33 @@ for k = 1:var_len
 		obj_csg = csg;
 
 		% Main structure
+		
+		if strcmpi(material_type,'bulk')
+			
+			switch scat_shape
+				
+				case 'circle'
+			
+					scatterers = {[min(obj_cent.cent_x)-r_scat , max(obj_cent.cent_x)+r_scat] , [min(obj_cent.cent_y)-r_scat , max(obj_cent.cent_y)+r_scat]};
+					
+				case 'rectangle'
+					
+					scatterers = {[min(obj_cent.cent_x)-scat_width/2 max(obj_cent.cent_x)+scat_width/2] , [min(obj_cent.cent_y)-scat_height/2 max(obj_cent.cent_y)+scat_height/2]};
+					
+			end
+			
+			scat_width = 2.*scatterers{1}(2);
+			
+			scat_height = 2.*scatterers{2}(2);
+			
+			obj_cent.cent_x = 0;
+			obj_cent.cent_y = 0;
+			
+			scat_shape = 'rectangle';
+			
+			placement_style = 'manual';
+			
+		end
 		
 		if strcmp(main_structure,'rectangle')
 		
@@ -435,7 +459,7 @@ for k = 1:var_len
 			
 				for i = 1:size(corner_circ_cent,2)
 
-					ind_circ = find(sum(round(dl(8:9,:)) == corner_circ_cent(:,i)) == 2);
+					ind_circ = find(sum(dl(8:9,:) == corner_circ_cent(:,i)) == 2);
 
 					face_lr = dl(6:7,ind_circ);
 
@@ -465,7 +489,7 @@ for k = 1:var_len
 		end
 
 % 		figure
-% 		pdegplot(dl)%,'FaceLabels','on','EdgeLabels','on')
+% 		pdegplot(dl,'FaceLabels','on')%,'EdgeLabels','on')
 % 		axis equal
 
 		model = createpde(1);
@@ -498,15 +522,15 @@ for k = 1:var_len
 				obj_zone.env = unique_zones(zone_majority_ind);
 				
 				zone_scat = 1:size(bt,2);
-				obj_zone.cyl = zone_scat(zone_scat ~= obj_zone.env);
+				obj_zone.scat = zone_scat(zone_scat ~= obj_zone.env);
   
 		end
 		
-		cyl_diel_const = di_const_scat * ones(1,length(obj_zone.cyl));
+		cyl_diel_const = di_const_scat * ones(1,length(obj_zone.scat));
 		
 		env_diel_const = di_const_env; % Corresponding dielectric constant
 		
-		cyl_mag_const = mag_const_scat * ones(1,length(obj_zone.cyl));
+		cyl_mag_const = mag_const_scat * ones(1,length(obj_zone.scat));
 		
 		env_mag_const = mag_const_env;
 		
@@ -517,7 +541,6 @@ for k = 1:var_len
 			env_mag_const = [env_mag_const mag_const_surf];
 			
 		end
-		
 		
 		%% Triangle Manipulation
 
@@ -532,7 +555,7 @@ for k = 1:var_len
 
 		for i = 1:n_refine
 
-			[p,e,t] = refinemesh(dl,p,e,t,obj_zone.cyl);
+			[p,e,t] = refinemesh(dl,p,e,t,obj_zone.scat);
 		
 		end
 		
@@ -615,7 +638,7 @@ for k = 1:var_len
 				diel_const = di_const_surf;
 				mag_const = mag_const_surf;
 				
-			elseif any(zone == obj_zone.cyl)
+			elseif any(zone == obj_zone.scat)
 				
 				diel_const = di_const_scat;
 				mag_const = mag_const_scat;
@@ -1003,9 +1026,9 @@ for k = 1:var_len
 
 		for i = 1:length(e(1,:))
 
-			if any(ismember(e(6:7,i),obj_zone.cyl))
+			if any(ismember(e(6:7,i),obj_zone.scat))
 
-				l_or_r = logical(sum(e(6:7,i) == obj_zone.cyl,2));
+				l_or_r = logical(sum(e(6:7,i) == obj_zone.scat,2));
 
 				vec = p(:,e(1:2,i));
 				vec_orth = [vec(2,2) - vec(2,1) ; (vec(1,2) - vec(1,1))] .* (l_or_r - ~l_or_r);
@@ -1099,12 +1122,13 @@ for k = 1:var_len
 			end
 
 		end
+		
 	
-		%% Contribution from triangles in all scatterer on the total field.
+		%% Contribution from triangles in all scatterers on the total field.
 	
-		for i = 1:length(obj_zone.cyl)
-			
-			tri_in_cyl = t(1:end-1,ismember(t(4,:),obj_zone.cyl(i)));
+		for i = 1:length(obj_zone.scat)
+
+			tri_in_cyl = t(1:end-1,ismember(t(4,:),obj_zone.scat(i)));
 
 			tri_cyl_x = p(1,tri_in_cyl);
 			tri_cyl_y = p(2,tri_in_cyl);
@@ -1147,39 +1171,39 @@ for k = 1:var_len
 					bk = tri_area*(2/6) .* (mag_ref .*(1/cyl_mag_const(i) - 1/mag_ref) - (cyl_diel_const(i) - di_ref)) .* k0.^2 .* mag_ref .* H0r;
 
 			end
-			
+
 			for j = 1:length(bk)
 
 				bv(tri_in_cyl(:,j)) = bv(tri_in_cyl(:,j)) + bk(j);
-				
+
 			end
 
 		end
-		
+
 		H0v = zeros(size(p,2),1);
-		
+
 		i_for = i_for + 1;
-		
+
 		for i = 1:size(p,2)
-			
+
 			x_vec = p(1,i);
 			y_vec = p(2,i);
-			
+
 			if y_vec >= surface_y_coordinate
-				
+
 				ref_ind = sqrt(di_const_env);
-				
+
 				H0v(i) = exp(1i * k0 * ref_ind * (cos(theta_1) * x_vec + sin(theta_1) * y_vec))...
 					   + refl * exp(1i * k0 * ref_ind * (cos(theta_1) * x_vec - sin(theta_1) * y_vec));
-				
+
 			else
-				
+
 				ref_ind = sqrt(di_const_surf);
-				
+
 				H0v(i) = tran * exp(1i * k0 * ref_ind * (cos(theta_2) * x_vec + sin(theta_2) * y_vec));
-				
+
 			end
-			
+
 			if exist('disppct.m','file') == 2 && exist('dispstat.m','file') == 2
 
 				pct = disppct(i,size(p,2),pct,i_for,n_for);
@@ -1189,12 +1213,26 @@ for k = 1:var_len
 				i/n_tri*100
 
 			end
-			
+
 		end
-	
+		
 	end
 	
 	Hv = M\bv;
+	
+	if n_env == n_surf
+			
+		temp_fig = figure('Unit','normalized','Position',[(1-0.4-0.1) 0.25 0.4 0.5]);
+		pdegplot(dl,'EdgeLabels','on')
+		axis equal
+
+		edge_del = input('Surface edges to delete. Seperate with comma.\n','s');
+		
+		close(temp_fig)
+		
+		[dl,bt] = csgdel(dl,bt,str2num(edge_del));
+
+	end
 	
 	if ~exist('var_object','var')
 	
