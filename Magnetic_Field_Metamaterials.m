@@ -56,7 +56,7 @@ for k = 1:var_len
 	
 	main_structure = 'circle';	% 'circle' or 'rectangle'.
 	scat_shape = 'circle';			% 'circle' or 'rectangle'.
-	material_type = 'bulk';			% 'scatterers' or 'bulk'
+	material_type = 'scatterers';			% 'scatterers' or 'bulk'
 	
 	polarisation = 's';				% 'p' or 's'.
 	
@@ -64,7 +64,7 @@ for k = 1:var_len
 	
 	enable_surface = true;			% Enable surface.
 	
-	geometric_order = 'linear';		% 'linear' or 'quadratic'.
+	geometric_order = 'quadratic';		% 'linear' or 'quadratic'.
 
 	lambda = 700;
 	
@@ -73,7 +73,7 @@ for k = 1:var_len
 	% Determines maximum size of elements. Therefore larger values of hmax
 	% creates fewer elements.
 	hmax = 4 .* 10;
-	hmin = hmax ./ 4;
+	hmin = hmax ./ 10;
 	
 	% Parameters for circular scatterers.
 	r_scat = 12; %sqrt((24.^2 - 4.^2 .* (4 - pi))./pi);	% Radius of scatterers.
@@ -202,7 +202,7 @@ for k = 1:var_len
 		
 		if PML
 			
-			r_PML = 800;	% Distanace from r_circ.
+			r_PML = 1500;	% Distanace from r_circ.
 			
 		end
 		
@@ -496,7 +496,7 @@ for k = 1:var_len
 
 		model.geometryFromEdges(dl);
 
-		mesh = generateMesh(model,'Hmax',hmax,'Hmin',hmin,'GeometricOrder',geometric_order);
+		mesh = generateMesh(model,'Hmax',hmax,'Hmin',hmin,'Hgrad',1.9,'GeometricOrder',geometric_order);
 		
 
 		%% Zone determination
@@ -507,7 +507,7 @@ for k = 1:var_len
 				
 				obj_zone = zone_determination;
 
-				obj_zone.zone_det(dl,bt,'enable_surface',enable_surface,'PML',PML);
+				obj_zone.zone_det(dl,bt);
 			
 			case 'rectangle'
 				
@@ -548,23 +548,44 @@ for k = 1:var_len
 		
 % 		figure
 % 		pdemesh(p,e,t)
-		
-% 		[p,e,t] = MidPointFix({p,e,t});
-		
-		n_refine = 2;
 
-		for i = 1:n_refine
-
-			[p,e,t] = refinemesh(dl,p,e,t,obj_zone.scat);
+		if strcmpi(mesh.GeometricOrder,'quadratic')
+			
+			[p,e,t] = MidPointFix({p,e,t});
+			
+		else
 		
+			n_refine = 2;
+
+			for i = 1:n_refine
+
+% 				[p,e,t] = refinemesh(dl,p,e,t,obj_zone.scat);
+
+			end
+			
 		end
+		
+		
 		
 % 		figure
 % 		pdemesh(p,e,t)
 		
 		n_tri = size(t,2);
+		
+		if strcmpi(mesh.GeometricOrder,'quadratic')
+			
+			B = [1    , -1/6 , -1/6 , 0    , -2/3 , 0    ;
+				 -1/6 , 1    , -1/6 , 0    , 0    , -2/3 ;
+				 -1/6 , -1/6 , 1    , -2/3 , 0    , 0    ;
+				 0    , 0    , -2/3 , 10/3 , 8/3  , 8/3  ;
+				 -2/3 , 0    , 0    , 8/3  , 10/3 , 8/3  ;
+				 0    , -2/3 , 0    , 8/3  , 8/3  , 10/3]/30;
+			
+		else
 
-		B = [2 1 1 ; 1 2 1 ; 1 1 2]/12;
+			B = [2 1 1 ; 1 2 1 ; 1 1 2]/12;
+			
+		end
 		
 		if strcmp(main_structure,'rectangle')
 
@@ -607,7 +628,7 @@ for k = 1:var_len
 	
 	%% Pre-calculation initialisations
 	
-	M = spalloc(size(p,2),size(p,2),3*length(p));
+	M = spalloc(size(p,2),size(p,2),(size(t,1)-1)*length(p));
 
 	bv = zeros(length(p),1);
 
@@ -647,7 +668,7 @@ for k = 1:var_len
 			
 		else
 		
-			if any(zone == obj_zone.env)
+			if any(zone == obj_zone.env) || (PML && any(zone == obj_zone.PML))
 
 				diel_const = di_const_env;
 				mag_const = mag_const_env;
@@ -659,21 +680,11 @@ for k = 1:var_len
 
 			end
 			
-			diel_const = 1;
-			
 		end
 		
 		ref_ind = sqrt(diel_const);
-		
-		if strcmp(mesh.GeometricOrder,'linear')
 
-			xy_val = p(:,t(1:3,i));
-			
-		else
-			
-			xy_val = p(:,t(1:6,i));
-			
-		end
+		xy_val = p(:,t(1:end-1,i));
 
 		x1 = xy_val(1,1);
 		x2 = xy_val(1,2);
@@ -681,23 +692,19 @@ for k = 1:var_len
 		y1 = xy_val(2,1);
 		y2 = xy_val(2,2);
 		y3 = xy_val(2,3);
+		
+		if strcmpi(mesh.GeometricOrder,'quadratic')
+			
+			x4 = xy_val(1,4);
+			x5 = xy_val(1,5);
+			x6 = xy_val(1,6);
+			y4 = xy_val(2,4);
+			y5 = xy_val(2,5);
+			y6 = xy_val(2,6);
+			
+		end
 
 		area_tri_k = abs((((x2 - x1) * (y3 - y1)) - ((y2 - y1) * (x3 - x1))))/2;
-
-		du_dx =  (y3 - y1)/((y3 - y1) * (x2 - x1) - (y2 - y1) * (x3 - x1));
-		dv_dx =  (y2 - y1)/((y2 - y1) * (x3 - x1) - (y3 - y1) * (x2 - x1));
-		du_dy = -(x3 - x1)/((y3 - y1) * (x2 - x1) - (y2 - y1) * (x3 - x1));
-		dv_dy = -(x2 - x1)/((y2 - y1) * (x3 - x1) - (y3 - y1) * (x2 - x1));
-
-		d11 = (-1 * du_dx - 1 * dv_dx) * (-1 * du_dx - 1 * dv_dx) + (-1 * du_dy - 1 * dv_dy) * (-1 * du_dy - 1 * dv_dy);
-		d12 = (-1 * du_dx - 1 * dv_dx) * (+1 * du_dx + 0 * dv_dx) + (-1 * du_dy - 1 * dv_dy) * (+1 * du_dy + 0 * dv_dy);
-		d13 = (-1 * du_dx - 1 * dv_dx) * (+0 * du_dx + 1 * dv_dx) + (-1 * du_dy - 1 * dv_dy) * (+0 * du_dy + 1 * dv_dy);
-		d21 = (+1 * du_dx + 0 * dv_dx) * (-1 * du_dx - 1 * dv_dx) + (+1 * du_dy + 0 * dv_dy) * (-1 * du_dy - 1 * dv_dy);
-		d22 = (+1 * du_dx + 0 * dv_dx) * (+1 * du_dx + 0 * dv_dx) + (+1 * du_dy + 0 * dv_dy) * (+1 * du_dy + 0 * dv_dy);
-		d23 = (+1 * du_dx + 0 * dv_dx) * (+0 * du_dx + 1 * dv_dx) + (+1 * du_dy + 0 * dv_dy) * (+0 * du_dy + 1 * dv_dy);
-		d31 = (+0 * du_dx + 1 * dv_dx) * (-1 * du_dx - 1 * dv_dx) + (+0 * du_dy + 1 * dv_dy) * (-1 * du_dy - 1 * dv_dy);
-		d32 = (+0 * du_dx + 1 * dv_dx) * (+1 * du_dx + 0 * dv_dx) + (+0 * du_dy + 1 * dv_dy) * (+1 * du_dy + 0 * dv_dy);
-		d33 = (+0 * du_dx + 1 * dv_dx) * (+0 * du_dx + 1 * dv_dx) + (+0 * du_dy + 1 * dv_dy) * (+0 * du_dy + 1 * dv_dy);
 		
 		% x and y coordinates of middle of triangle.
 		x_mid_tri = ((max(xy_val(1,:)) - min(xy_val(1,:)))/2) + min(xy_val(1,:));
@@ -706,8 +713,62 @@ for k = 1:var_len
 		fun_ang = cos(theta) * x_mid_tri + sin(theta) * y_mid_tri;
 
 		E0 = exp(1i * k0 * ref_ind * fun_ang);
+
+		du_dx =  (y3 - y1)/((y3 - y1) * (x2 - x1) - (y2 - y1) * (x3 - x1));
+		dv_dx =  (y2 - y1)/((y2 - y1) * (x3 - x1) - (y3 - y1) * (x2 - x1));
+		du_dy = -(x3 - x1)/((y3 - y1) * (x2 - x1) - (y2 - y1) * (x3 - x1));
+		dv_dy = -(x2 - x1)/((y2 - y1) * (x3 - x1) - (y3 - y1) * (x2 - x1));
+
+		if strcmpi(mesh.GeometricOrder,'linear')
+		
+			d11 = (-1 * du_dx - 1 * dv_dx) * (-1 * du_dx - 1 * dv_dx) + (-1 * du_dy - 1 * dv_dy) * (-1 * du_dy - 1 * dv_dy);
+			d12 = (-1 * du_dx - 1 * dv_dx) * (+1 * du_dx + 0 * dv_dx) + (-1 * du_dy - 1 * dv_dy) * (+1 * du_dy + 0 * dv_dy);
+			d13 = (-1 * du_dx - 1 * dv_dx) * (+0 * du_dx + 1 * dv_dx) + (-1 * du_dy - 1 * dv_dy) * (+0 * du_dy + 1 * dv_dy);
+			d21 = (+1 * du_dx + 0 * dv_dx) * (-1 * du_dx - 1 * dv_dx) + (+1 * du_dy + 0 * dv_dy) * (-1 * du_dy - 1 * dv_dy);
+			d22 = (+1 * du_dx + 0 * dv_dx) * (+1 * du_dx + 0 * dv_dx) + (+1 * du_dy + 0 * dv_dy) * (+1 * du_dy + 0 * dv_dy);
+			d23 = (+1 * du_dx + 0 * dv_dx) * (+0 * du_dx + 1 * dv_dx) + (+1 * du_dy + 0 * dv_dy) * (+0 * du_dy + 1 * dv_dy);
+			d31 = (+0 * du_dx + 1 * dv_dx) * (-1 * du_dx - 1 * dv_dx) + (+0 * du_dy + 1 * dv_dy) * (-1 * du_dy - 1 * dv_dy);
+			d32 = (+0 * du_dx + 1 * dv_dx) * (+1 * du_dx + 0 * dv_dx) + (+0 * du_dy + 1 * dv_dy) * (+1 * du_dy + 0 * dv_dy);
+			d33 = (+0 * du_dx + 1 * dv_dx) * (+0 * du_dx + 1 * dv_dx) + (+0 * du_dy + 1 * dv_dy) * (+0 * du_dy + 1 * dv_dy);
+
+			A = area_tri_k * [d11 d12 d13 ; d21 d22 d23 ; d31 d32 d33];
 			
-		A = area_tri_k * [d11 d12 d13 ; d21 d22 d23 ; d31 d32 d33];
+		else
+			
+			d11 = du_dx.^2 + 2*du_dx*dv_dx + du_dy.^2 + 2*du_dy*dv_dy + dv_dx.^2 + dv_dy.^2;
+			d12 = (du_dx.^2 + du_dx*dv_dx + du_dy.^2 + du_dy*dv_dy)/3;
+			d13 = (du_dx*dv_dx + dv_dx.^2 + du_dy*dv_dy + dv_dy.^2)/3;
+			d14 = -(du_dx.^2 + du_dx*dv_dx + du_dy.^2 + du_dy*dv_dy)*(4/3);
+			d15 = 0;
+			d16 = -(dv_dx.^2 + du_dx*dv_dx + dv_dy.^2 + du_dy*dv_dy)*(4/3);
+			d22 = du_dx.^2 + du_dy.^2;
+			d23 = -(du_dx*dv_dx + du_dy*dv_dy)/3;
+			d24 = -(du_dx.^2 + du_dx*dv_dx + du_dy.^2 + du_dy*dv_dy)*(4/3);
+			d25 = (du_dx*dv_dx + du_dy*dv_dy)*(4/3);
+			d26 = 0;
+			d33 = dv_dx.^2 + dv_dy.^2;
+			d34 = 0;
+			d35 = (du_dx*dv_dx + du_dy*dv_dy)*(4/3);
+			d36 = -(dv_dx.^2 + du_dx*dv_dx + dv_dy*du_dy + dv_dy.^2)*(4/3);
+			d44 = (du_dx.^2 + dv_dx.^2 + du_dx*dv_dx + du_dy.^2 + dv_dy.^2 + du_dy*dv_dy)*(8/3);
+			d45 = -(du_dx*dv_dx + du_dy*dv_dy + dv_dx.^2 + dv_dy.^2)*(8/3);
+			d46 = (du_dx*dv_dx + du_dy*dv_dy)*(8/3);
+			d55 = (du_dx.^2 + dv_dx.^2 + du_dx*dv_dx + du_dy.^2 + dv_dy.^2 + du_dy*dv_dy)*(8/3);
+			d56 = -(du_dx*dv_dx + du_dy*dv_dy + du_dy.^2 + du_dx.^2)*(8/3);
+			d66 = (dv_dx.^2 + du_dx.^2 + du_dx*dv_dx + du_dy.^2 + dv_dy.^2 + du_dy*dv_dy)*(8/3);
+			
+			A_temp = [d11 , d12 , d13 , d14 , d15 , d16 ;...
+					  0   , d22 , d23 , d24 , d25 , d26 ;...
+					  0   , 0   , d33 , d34 , d35 , d36 ;...
+					  0   , 0   , 0   , d44 , d45 , d46 ;...
+					  0   , 0   , 0   , 0   , d55 , d56 ;...
+					  0   , 0   , 0   , 0   , 0   , d66];
+			 
+			A = A_temp + A_temp.' .* ~eye(6);
+			A = A * area_tri_k;
+% 			A = zeros(6);
+			
+		end
 		
 		if PML
 			
@@ -715,7 +776,7 @@ for k = 1:var_len
 			
 			sigma_0 = 6*log(10)/(2*pi/lambda*r_PML^3);%4*log(10)/(k0*(r_PML.^2)*(diel_const.^2));
 
-			if any(t(end,i) == obj_zone.PML)
+			if any(zone == obj_zone.PML)
 				
 				r_mid_tri = sqrt(x_mid_tri.^2 + y_mid_tri.^2);
 			
@@ -728,22 +789,6 @@ for k = 1:var_len
 			end
 
 			A = A ./ (1 + 1i * sigma).^2;
-			
-		elseif strcmpi(main_structure,'circle')
-			
-			switch polarisation
-				
-				case 'p'
-			
-					bk = - k0.^2 * (1/diel_const - 1/di_const_env) * E0 * 2 * area_tri_k / 6;
-					
-				case 's'
-					
-					bk = - k0.^2 * (diel_const - di_const_env) * E0 * 2 * area_tri_k / 6;
-					
-			end
-			
-			bv(t(1:3,i)) = bv(t(1:3,i)) + bk.';
 
 		end
 
@@ -843,8 +888,9 @@ for k = 1:var_len
 			Mk = Mk + C;
 
 		end
+		
 
-		M(t(1:3,i),t(1:3,i)) = M(t(1:3,i),t(1:3,i)) + Mk;
+		M(t(1:end-1,i),t(1:end-1,i)) = M(t(1:end-1,i),t(1:end-1,i)) + Mk;
 
 		if exist('disppct.m','file') == 2 && exist('dispstat.m','file') == 2
 
@@ -1034,10 +1080,33 @@ for k = 1:var_len
 				vec_orth = [vec(2,2) - vec(2,1) ; (vec(1,2) - vec(1,1))] .* (l_or_r - ~l_or_r);
 				vec_normal = vec_orth/norm(vec_orth);
 				
+				if strcmpi(mesh.GeometricOrder,'quadratic')
+				
+					% Find which of the two indices appear in row 4,5 or 6 of
+					% t.
+					point_mid = logical(sum(ismember(e(1:2,i),t(4:6,:)),2));
+
+					% Find the two e indices where this index appears.
+					e_ind = find(sum(ismember(e(1:2,:),e(point_mid,i))));
+
+					% Index in e which contains the same mid point.
+					ad_mid = e_ind(~logical(sum(e_ind == find(sum(ismember(e(1:2,:),e(~point_mid,i)))).')));
+
+					% The other corner of the two edges.
+					ad_cor = e(e(1:2,ad_mid) ~= e(point_mid,i),ad_mid);
+					
+					edge_points = [e(~point_mid,i) , ad_cor , e(point_mid,i)];
+					
+					% Redefine vec to include other corner.
+					vec = p(:,edge_points);
+					
+				end
+				
+				
 				if all(l_or_r)
 					
 					H_prime = (vec_normal(1)*cos(theta_2) + vec_normal(2)*sin(theta_2))...
-							 * 1i * k0 * n_surf * tran * exp(1i*k0*n_surf*(cos(theta_2)*sum(vec(1,:))/2 + sin(theta_2)*sum(vec(2,:))/2));
+							 * 1i * k0 * n_surf * tran * exp(1i*k0*n_surf*(cos(theta_2)*vec(1,:) + sin(theta_2)*vec(2,:)));
 					
 					if vec_normal(2) == 1
 						
@@ -1058,7 +1127,7 @@ for k = 1:var_len
 							di_2 = cyl_diel_const(~u_or_d);
 							di_ref_2 = env_diel_const(~u_or_d);
 
-							bk = (norm(vec_orth)/2)*((1/di_1 - 1/di_ref_1)-(1/di_2 - 1/di_ref_2))*H_prime;
+							bk = (norm(vec_orth)/2)*((1/di_1 - 1/di_ref_1)-(1/di_2 - 1/di_ref_2));
 
 						case 's'
 							
@@ -1067,7 +1136,7 @@ for k = 1:var_len
 							mag_2 = cyl_mag_const(~u_or_d);
 							mag_ref_2 = env_mag_const(~u_or_d);
 
-							bk = (norm(vec_orth)/2)*((1/mag_1 - 1/mag_ref_1)-(1/mag_2 - 1/mag_ref_2))*H_prime;
+							bk = (norm(vec_orth)/2)*((1/mag_1 - 1/mag_ref_1)-(1/mag_2 - 1/mag_ref_2));
 
 					end
 					
@@ -1076,12 +1145,14 @@ for k = 1:var_len
 					u_or_d = logical(sum(e(6:7,i) == obj_zone.env,2));
 
 					H_prime = [(vec_normal(1)*cos(theta_1) + vec_normal(2)*sin(theta_1))...
-							 * 1i * k0 * n_env * exp(1i*k0*n_env*(cos(theta_1)*sum(vec(1,:))/2 + sin(theta_1)*sum(vec(2,:))/2))...
+							 * 1i * k0 * n_env * exp(1i*k0*n_env*(cos(theta_1)*vec(1,:) + sin(theta_1)*vec(2,:)))...
 							 + (vec_normal(1)*cos(theta_1) - vec_normal(2)*sin(theta_1))...
-							 * 1i * k0 * n_env * refl * exp(1i*k0*n_env*(cos(theta_1)*sum(vec(1,:))/2 - sin(theta_1)*sum(vec(2,:))/2))...
+							 * 1i * k0 * n_env * refl * exp(1i*k0*n_env*(cos(theta_1)*vec(1,:) - sin(theta_1)*vec(2,:)))...
 							 ;...
 							   (vec_normal(1)*cos(theta_2) + vec_normal(2)*sin(theta_2))...
-							 * 1i * k0 * n_surf * tran * exp(1i*k0*n_surf*(cos(theta_2)*sum(vec(1,:))/2 + sin(theta_2)*sum(vec(2,:))/2))];
+							 * 1i * k0 * n_surf * tran * exp(1i*k0*n_surf*(cos(theta_2)*vec(1,:) + sin(theta_2)*vec(2,:)))];
+						 
+					H_prime = H_prime(u_or_d,:);
 
 					switch polarisation
 
@@ -1092,7 +1163,7 @@ for k = 1:var_len
 							di_2 = cyl_diel_const(l_or_r);
 							di_ref_2 = env_diel_const(2);
 
-							bk = (norm(vec_orth)/2)*(((1/di_1 - 1/di_ref_1) - (1/di_2 - 1/di_ref_2))*H_prime(u_or_d));
+							bk = (norm(vec_orth)/2)*((1/di_1 - 1/di_ref_1) - (1/di_2 - 1/di_ref_2));
 
 						case 's'
 							
@@ -1101,13 +1172,27 @@ for k = 1:var_len
 							mag_2 = cyl_mag_const(l_or_r);
 							mag_ref_2 = env_mag_const(2);
 
-							bk = (norm(vec_orth)/2)*((1/mag_1 - 1/mag_ref_1) - (1/mag_2 - 1/mag_ref_2))*H_prime(u_or_d);
+							bk = (norm(vec_orth)/2)*((1/mag_1 - 1/mag_ref_1) - (1/mag_2 - 1/mag_ref_2));
 
 					end
 					
 				end
 				
-				bv(e(1:2,i)) = bv(e(1:2,i)) + bk;
+				if strcmpi(mesh.GeometricOrder,'quadratic')
+					
+					bk = 2*bk*[2*H_prime(1)/15 -   H_prime(2)/30 +   H_prime(3)/15 ,...
+							    -H_prime(1)/30 + 2*H_prime(2)/15 +   H_prime(3)/15 ,...
+							     H_prime(1)/15 +   H_prime(2)/15 + 8*H_prime(3)/15].';
+					
+					bv(edge_points) = bv(edge_points) + bk/2;
+					
+				else
+					
+					bk = bk*H_prime;
+					
+					bv(e(1:2,i)) = bv(e(1:2,i)) + bk.';
+					
+				end
 
 			end
 			
@@ -1128,27 +1213,24 @@ for k = 1:var_len
 	
 		for i = 1:length(obj_zone.scat)
 
-			tri_in_cyl = t(1:end-1,ismember(t(4,:),obj_zone.scat(i)));
+			tri_in_cyl = t(1:end-1,ismember(t(end,:),obj_zone.scat(i)));
 
-			tri_cyl_x = p(1,tri_in_cyl);
-			tri_cyl_y = p(2,tri_in_cyl);
-			xy_123_vals = [1:3:length(tri_cyl_x) ; 2:3:length(tri_cyl_x) ; 3:3:length(tri_cyl_x)];
-			tri_area = abs((tri_cyl_y(xy_123_vals(3,:)) - tri_cyl_y(xy_123_vals(1,:)))...
-						.* (tri_cyl_x(xy_123_vals(2,:)) - tri_cyl_x(xy_123_vals(1,:)))...
-						 - (tri_cyl_y(xy_123_vals(2,:)) - tri_cyl_y(xy_123_vals(1,:)))...
-						.* (tri_cyl_x(xy_123_vals(3,:)) - tri_cyl_x(xy_123_vals(1,:))))/2;
+			tri_cyl_x = reshape(p(1,tri_in_cyl),size(t,1)-1,[]);
+			tri_cyl_y = reshape(p(2,tri_in_cyl),size(t,1)-1,[]);
+			
+			tri_area = abs((tri_cyl_y(3,:) - tri_cyl_y(1,:))...
+						.* (tri_cyl_x(2,:) - tri_cyl_x(1,:))...
+						 - (tri_cyl_y(2,:) - tri_cyl_y(1,:))...
+						.* (tri_cyl_x(3,:) - tri_cyl_x(1,:)))/2;
 
-			x_avg = (tri_cyl_x(xy_123_vals(1,:)) + tri_cyl_x(xy_123_vals(2,:)) + tri_cyl_x(xy_123_vals(3,:)))/3;
-			y_avg = (tri_cyl_y(xy_123_vals(1,:)) + tri_cyl_y(xy_123_vals(2,:)) + tri_cyl_y(xy_123_vals(3,:)))/3;
-
-			if mean(y_avg) > surface_y_coordinate
+			if mean(mean(tri_cyl_y)) > surface_y_coordinate
 
 				di_ref = env_diel_const(1);
 
 				mag_ref = env_mag_const(1);
 
-				H0r = exp(1i*k0*(sqrt(di_ref))*(cos(theta_1)*x_avg + sin(theta_1)*y_avg))...
-					+ refl*exp(1i*k0*(sqrt(di_ref))*(cos(theta_1)*x_avg - sin(theta_1)*y_avg));
+				H0r = exp(1i*k0*(sqrt(di_ref))*(cos(theta_1)*tri_cyl_x + sin(theta_1)*tri_cyl_y))...
+			    +refl*exp(1i*k0*(sqrt(di_ref))*(cos(theta_1)*tri_cyl_x - sin(theta_1)*tri_cyl_y));
 
 			else
 
@@ -1156,8 +1238,22 @@ for k = 1:var_len
 
 				mag_ref = env_mag_const(2);
 
-				H0r = tran*exp(1i*k0*(sqrt(di_ref))*(cos(theta_2)*x_avg + sin(theta_2)*y_avg));
+				H0r = tran*exp(1i*k0*(sqrt(di_ref))*(cos(theta_2)*tri_cyl_x + sin(theta_2)*tri_cyl_y));
 
+			end
+			
+			if strcmpi(mesh.GeometricOrder,'quadratic')
+				
+				temp_vals = [(   H0r(1,:)   -    H0r(2,:)/6 -    H0r(3,:)/6 -  2*H0r(5,:)/3 ).',...
+							 (-  H0r(1,:)/6 +    H0r(2,:)   -    H0r(3,:)/6 -  2*H0r(6,:)/3 ).',...
+							 (-  H0r(1,:)/6 -    H0r(2,:)/6 +    H0r(3,:)   -  2*H0r(4,:)/3 ).',...
+							 (-2*H0r(3,:)/3 + 16*H0r(4,:)/3 +  8*H0r(5,:)/3 +  8*H0r(6,:)/3 ).',...
+							 (-2*H0r(1,:)/3 +  8*H0r(4,:)/3 + 16*H0r(5,:)/3 +  8*H0r(6,:)/3 ).',...
+							 (-2*H0r(2,:)/3 +  8*H0r(4,:)/3 +  8*H0r(5,:)/3 + 16*H0r(6,:)/3 ).'].';
+% 				temp_vals = [0 , 0 , 0 , 1 , 1 , 1].' * H0r;
+						 
+				H0r = temp_vals/10;
+				
 			end
 
 			switch polarisation
@@ -1172,9 +1268,9 @@ for k = 1:var_len
 
 			end
 
-			for j = 1:length(bk)
+			for j = 1:size(bk,2)
 
-				bv(tri_in_cyl(:,j)) = bv(tri_in_cyl(:,j)) + bk(j);
+				bv(tri_in_cyl(:,j)) = bv(tri_in_cyl(:,j)) + bk(:,j);
 
 			end
 
@@ -1220,13 +1316,13 @@ for k = 1:var_len
 	
 	Hv = M\bv;
 	
-	if n_env == n_surf
+	if false%n_env == n_surf
 			
 		temp_fig = figure('Unit','normalized','Position',[(1-0.4-0.1) 0.25 0.4 0.5]);
 		pdegplot(dl,'EdgeLabels','on')
 		axis equal
 
-		edge_del = input('Surface edges to delete. Seperate with comma.\n','s');
+		edge_del = input('Surface edges to delete. Separate with comma:\n','s');
 		
 		close(temp_fig)
 		
@@ -1243,10 +1339,10 @@ for k = 1:var_len
 		pdegplot(dl)
 		axis equal
 	
-		if strcmpi(main_structure,'rectangle')
+		if ~enable_surface
 
 			H0vxy = cos(theta) * p(1,:) + sin(theta) * p(2,:);
-			H0v = exp(-1i*k0*n_env*H0vxy).';
+			H0v = exp(1i*k0*n_env*H0vxy).';
 
 		end
 		
@@ -1343,10 +1439,10 @@ for k = 1:var_len
 			
 	end
 	
-% 	figure
+	figure
 
 % 	scatter3(cos(angle_peri)*r_circ,sin(angle_peri)*r_circ,line_abs,1,line_abs)
-% 	plot(angle_peri,line_abs)
+	plot(angle_peri,line_abs)
 % 	asd
 % 	plot(line_y,line_abs)
 

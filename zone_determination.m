@@ -20,21 +20,19 @@ classdef zone_determination < handle
 			
 			p = inputParser;
 			
-			default_values = {0 , 'circle'};
-			valid_values = {[0,1] , {'circle','rectangle'}};
-			check_values = {@(x) any(x == valid_values{1}) , @(x) any(strcmpi(x,valid_values{2}))};
-			
-			addParameter(p,'enable_surface',default_values{1},check_values{1});
-			addParameter(p,'PML',default_values{1},check_values{1});
-			addParameter(p,'ScatType',default_values{2},check_values{2});
+			default_values = 'circle';
+			valid_values = {'circle','rectangle'};
+			check_values = @(x) any(strcmpi(x,valid_values));
+
+			addParameter(p,'ScatType',default_values,check_values);
 			
 			parse(p,varargin{:})
 			
 			%% Environment faces
 			
-			obj.env = find(sum(bt(:,1:(end - p.Results.enable_surface)),2) - p.Results.PML == 1).';
+			obj.env = find(sum(bt(:,1:(end - 1)),2) - 1 == 1).';
 			
-			if length(obj.env) ~= (1 + p.Results.enable_surface)
+			if length(obj.env) ~= (2)
 				
 				warning('Could not determine faces of environment. Please insert them manually.')
 				
@@ -59,7 +57,7 @@ classdef zone_determination < handle
 			
 			%% Scatterer faces
 			
-			scat_geom = bt(:,(2 + p.Results.PML):(end - p.Results.enable_surface));
+			scat_geom = bt(:,(3):(end - 1));
 			
 			if exist('key','var')
 				
@@ -96,31 +94,19 @@ classdef zone_determination < handle
 			
 			%% Perfectly Matched Layer
 			
-			if p.Results.PML
-			
-				obj.PML = find(sum(bt(:,1:end - p.Results.enable_surface),2) == 1).';
-				
-				if bt(obj.PML(1),end)
-					
-					obj.PML = fliplr(obj.PML);
-					
-				end
-				
+			obj.PML = find(sum(bt(:,1:end - 1),2) == 1).';
+
+			if bt(obj.PML(1),end)
+
+				obj.PML = fliplr(obj.PML);
+
 			end
-			
-			if p.Results.enable_surface
 				
-				obj.upper = obj.env(bt(obj.env,end) == 0);
-				obj.lower = obj.env(bt(obj.env,end) == 1);
-				
-				if p.Results.PML
-					
-					obj.upper = [obj.upper , obj.PML(bt(obj.PML,end) == 0)];
-					obj.lower = [obj.lower , obj.PML(bt(obj.PML,end) == 1)];
-					
-				end
-				
-			end
+			obj.upper = obj.env(bt(obj.env,end) == 0);
+			obj.lower = obj.env(bt(obj.env,end) == 1);
+
+			obj.upper = [obj.upper , obj.PML(bt(obj.PML,end) == 0)];
+			obj.lower = [obj.lower , obj.PML(bt(obj.PML,end) == 1)];
 			
 		end
 		
